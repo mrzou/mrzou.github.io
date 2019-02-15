@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+   
+      <title>mrzou.github.io/jasper/</title>
+   
+   <link></link>
+   <description>学习的一些记录</description>
+   <language>zh-cn</language>
+   <managingEditor> </managingEditor>
+   <atom:link href="rss" rel="self" type="application/rss+xml" />
+   
+	<item>
+	  <title>Ruby TSort 在Rails中的使用</title>
+	  <link>//ruby-tsort-usage</link>
+	  <author></author>
+	  <pubDate>2019-02-14T18:18:00+08:00</pubDate>
+	  <guid>//ruby-tsort-usage</guid>
+	  <description><![CDATA[
+	     <p>平时候接触到的只是业务逻辑层面的使用，很少触及到算法方面的应用，在看rails应用的启动过程时，偶然间发现的一个算法应用，然后查看了相关的资料，总结下TSort算法在Rails中的应用           —— 初稿</p>
+
+<h3 id="tsort的理解">TSort的理解</h3>
+
+<ul>
+  <li>
+    <p>TSort的意思: TSort 是topological sorting的缩写，是拓扑排序的意思，拓扑排序是有向图按其线性排列的一种算法，有个先后的排序顺序，而且不能有环出现，如果有环出现，则不算是拓扑结构了。一般拓扑结构可以用来表示元素的一些依赖关系的处理，如果事物A需要在事物B之前处理，则是B依赖于A的执行，B要先处理。</p>
+  </li>
+  <li>TSort的使用:
+    <ol>
+      <li><code class="highlighter-rouge">TSort.tsort_each(each_node, each_child)</code> 接受两个block作为参数，这两个block参数都接收另外一个block作为参数使用，另外的那个block是在TSort中传递进去的，作用是逐个作用在节点和子节点上。
+        <ul>
+          <li>each_node(&amp;block) 定义这个方法是因为在拓扑结构中的点可能是对象，或是数字，或是一些字母类的东西，但是点和点间产生关联需要有关联因子，each_node这个block就是取出关联因子，然后逐个作为参数去调用block就可以了。</li>
+          <li>each_child(&amp;block) 这个方法的目的和each_node差不多，但是这个方法的作用因子是下一个关联关系，如下图：
+<img src="assets/images/simple_relation.png" alt="关系图" />，其中A是应用到each_node中，B和C是应用到each_child中。</li>
+        </ul>
+      </li>
+      <li>或者是让成员的集合去覆写 <code class="highlighter-rouge">tsort_each_node</code> 和 <code class="highlighter-rouge">tsort_each_child</code> 这两个方法，这两个方法的作用和上面的 <code class="highlighter-rouge">each_node</code> he <code class="highlighter-rouge">each_child</code> 的作用一样，只是调用 <code class="highlighter-rouge">tsort_each</code>的对象不一样，这种方式是用成员集合去调用 <code class="highlighter-rouge">tsort_each</code> 方法的。</li>
+    </ol>
+  </li>
+  <li>
+    <p>使用例子：如下图的关系，需要按照依赖关系逐个输出节点。
+<img src="assets/images/simple_relation1.png" alt="图形关系" />
+这个例子中可以用如下关系表示A, B, C, D节点
+A = B + C
+B = C + 2
+C = 2
+D = B + A + 1
+要求出这些未知数，应该先求解出这些数的顺序。</p>
+  </li>
+  <li>
+    <p>这些数可以用两种数据结构表示关系，一个是直接hash，另外一个有可能这些依赖关系只是对象的一个属性而已，这就是为什么需要自定义 <code class="highlighter-rouge">each_node</code> 和 <code class="highlighter-rouge">each_child</code> 的原因。</p>
+
+    <ul>
+      <li>
+        <p>用hash表示求解如下</p>
+
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>graph = { A: [:D], B: [:A, :D], C: [:A, :B], D: [] }
+each_node = lambda {|&amp;b| graph.each_key(&amp;b) }
+each_child = lambda { |n, &amp;b| graph[n].each(&amp;b) }
+
+TSort.tsort_each(each_node, each_child) {|scc|
+  p scc
+}
+# puts:
+# :D
+# :A
+# :B
+# :C
+
+</code></pre></div>        </div>
+      </li>
+      <li>
+        <p>用对象表示如下</p>
+      </li>
+    </ul>
+
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+class NodeObj
+  attr_reader :node, :children
+
+  def initialize(node, children)
+    @node =node
+    @children = children
+  end
+end
+
+class TSortTest
+  include TSort
+
+  def initialize(node_objs)
+    @node_objs = node_objs
+  end
+
+  def tsort_each_node(&amp;block)
+    @node_objs.map(&amp;:node).each(&amp;block)
+  end
+
+  def tsort_each_child(node, &amp;block)
+    @node_objs.select do |node_obj|
+      node_obj.children.include? node
+    end.map(&amp;:node).each(&amp;block)
+  end
+end
+
+node_objs = []
+node_objs.push NodeObj.new('C','2')
+node_objs.push NodeObj.new('D','B + A + 1')
+node_objs.push NodeObj.new('A','B + C')
+node_objs.push NodeObj.new('B','C + 2')
+
+tsort_test = TSortTest.new(node_objs)
+tsort_test.tsort_each do |node|
+  p node
+end
+# puts:
+# :D
+# :A
+# :B
+# :C
+
+</code></pre></div>    </div>
+    <ul>
+      <li>上面是根据图的不同数据结构的表示方法使用的两种方式，都是一样的调用，只不过<strong>include ‘tsort’</strong>那种方式是用的重新定义的方式去用的，在Rails的初始化的依赖中主要是使用后一种方式。</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="在rails中的应用">在rails中的应用</h3>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+# /Users/Cain/.rvm/gems/ruby-2.5.3/gems/railties-5.2.1.1/lib/rails/initializable.rb
+
+class Collection &lt; Array
+  include TSort
+
+  alias :tsort_each_node :each
+  def tsort_each_child(initializer, &amp;block)
+    select { |i| i.before == initializer.name || i.name == initializer.after }.each(&amp;block)
+  end
+
+  def +(other)
+    Collection.new(to_a + other.to_a)
+  end
+end
+
+</code></pre></div></div>
+
+<ul>
+  <li>上面定义了一个继承Array的类，这个类里定义了需要覆盖的两个方法，其中 <code class="highlighter-rouge">tsort_each_node</code> 用 Array中的<code class="highlighter-rouge">each</code> 这个方法表示集合中的成员就表示一个节点了，而 <code class="highlighter-rouge">tsort_each_child</code> 方法求得的孩子节点需要通过其它Raitie中定义的 <code class="highlighter-rouge">initializer</code> before 和 after这两个option去取得联系，从而用那些子节点作为参数去调用block来执行。</li>
+</ul>
+
+<h3 id="tsort源码解析">TSort源码解析</h3>
+
+<h4 id="tsort使用的基本算法">TSort使用的基本算法</h4>
+
+<ul>
+  <li>TSort是基于Tarjan算法来进行排序的，在这里不详细介绍Tarjan排序算法，只是通过Tarjan算法演变到拓扑排序的介绍</li>
+</ul>
+
+<ol>
+  <li>
+    <p>Tarjan是用来查找强连通分量的，而一个节点也可以是多个强连通分量的特殊情况，所有TSort中如果算法中找到有多个节点的强连通分量时就会抛出 <code class="highlighter-rouge">Cyclic</code> 这个错误，表示存在环子图，不符合拓扑排序。而只有一个节点的强连通分量根据进入栈中后进先出的规则，可以去到按依赖排序的元素出来。</p>
+  </li>
+  <li>
+    <p>该算法是会有三个数据结构，一个是dnf数组，初始化是按照访问节点顺序加1，用来存储访问节点的顺序的，其中的值表示节点的位置。另外一个是low数组，初始值和dnf中的值一样，这个数组是用来存储子节点不通过父节点访问到的祖父节点的最小时间戳是多少，这里的时间戳可以理解为low中的数值。</p>
+  </li>
+  <li>
+    <p>在算法中判断该节点是不是强连通分量，是不是应该出栈是通过判断dnf和low对应的节点是否一样来判断的，如果一样了，表示这个节点不能回到祖先节点，说明该节点不在一个多节点的强连通分量重，则这个节点是单独的一个强连通分量，如果不想等，说明这个节点可以回到祖先节点，那这个节点肯定在多个节点的强连通分量上，这是就不满足拓扑结构了。下面介绍的实现 TSort的就是通过这种方式去实现的。</p>
+  </li>
+</ol>
+
+<h4 id="tsort-源码解析">TSort 源码解析</h4>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  def TSort.tsort_each(each_node, each_child) # :yields: node
+    return to_enum(__method__, each_node, each_child) unless block_given?
+
+    TSort.each_strongly_connected_component(each_node, each_child) {|component|
+      if component.size == 1
+        yield component.first
+      else
+        raise Cyclic.new("topological sort failed: #{component.inspect}")
+      end
+    }
+  end
+
+</code></pre></div></div>
+
+<ul>
+  <li>这里的调用 <code class="highlighter-rouge">each_strongly_connected_component</code> 方法加的block就是为了判断强连通分量中的节点是否满足只有一个的情况，如果有多个就不满足拓扑图了，会抛出错误。</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+  def TSort.each_strongly_connected_component(each_node, each_child) # :yields: nodes
+    return to_enum(__method__, each_node, each_child) unless block_given?
+
+    id_map = {} # 表示点的位置，为了避免重复调用节点去求强连通分量
+    stack = []
+    each_node.call {|node|
+      unless id_map.include? node   # 如果已经存在那个节点，表示节点的关联关系已经被求过了，不需要进一步求了
+        TSort.each_strongly_connected_component_from(node, each_child, id_map, stack) {|c|
+          yield c
+        }
+      end
+    }
+    nil
+  end
+
+</code></pre></div></div>
+
+<ul>
+  <li>这个方法主要是把每个节点作为block的参数去调用，由于一个拓扑图是有前有后的，说明肯定有根节点存在，但是在表示的映射的数据对结构中，不能确保第一次用的节点就是根节点，也有可能是最后个节点，所有需要遍历这些节点去求到他们的强连通图。</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  def TSort.each_strongly_connected_component_from(node, each_child, id_map={}, stack=[]) # :yields: nodes
+    return to_enum(__method__, node, each_child, id_map, stack) unless block_given?
+
+    minimum_id = node_id = id_map[node] = id_map.size # node_id 是元素的位置，minimum_id 是low数组中对应的值
+    stack_length = stack.length
+    stack &lt;&lt; node
+
+    each_child.call(node) {|child|
+      if id_map.include? child # 表示遇到已经访问过的节点
+        child_id = id_map[child]
+        minimum_id = child_id if child_id &amp;&amp; child_id &lt; minimum_id # child_id 不为空表示没有出栈且没有被置为nil
+      else # 这是遍历子节点
+        sub_minimum_id =
+          TSort.each_strongly_connected_component_from(child, each_child, id_map, stack) {|c|
+            yield c
+          }
+        minimum_id = sub_minimum_id if sub_minimum_id &lt; minimum_id
+      end
+    }
+
+    if node_id == minimum_id # 如果这两个值相等，表示栈里的数据都是一个强连通分量，则把栈里的数据都退出来，这些都是一个强连通分量来的。
+      component = stack.slice!(stack_length .. -1)
+      component.each {|n| id_map[n] = nil}
+      yield component
+    end
+
+    minimum_id
+  end
+
+</code></pre></div></div>
+
+<ul>
+  <li>拓扑排序的实现主要是这个方法，用了递归去变量各个节点，然后逐个加上标识，然后判断是否满足退栈的条件，如果dnf和low中对应的值相等，说明这是一个强连通分量的跟，就把栈里的数值按顺序退出去就行了。</li>
+</ul>
+
+<h4 id="ref">Ref:</h4>
+<ul>
+  <li><a href="http://blog.miskcoo.com/2016/07/tarjan-algorithm-strongly-connected-components">Tarjan算法寻找有向图的强连通分量</a></li>
+  <li><a href="https://github.com/ruby/ruby/blob/trunk/lib/tsort.rb">tsrot source code</a></li>
+  <li><a href="https://www.klausrubrecht.com/rubys-tsort-explained/">RUBY’S TSORT EXPLAINED</a></li>
+</ul>
+
+	  ]]></description>
+	</item>
+
+
+</channel>
+</rss>
