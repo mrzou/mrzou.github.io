@@ -4,20 +4,20 @@
     <title>Thinking - Articles</title>
     <description>学习的一些记录</description>
     <link>
-    </link>
+    http://localhost:4000</link>
     
       
       <item>
         <title>Ruby TSort 在Rails中的使用</title>
         
-          <description>&lt;p&gt;平时候接触到的只是业务逻辑层面的使用，很少触及到算法方面的应用，在看rails应用的启动过程时，偶然间发现的一个算法应用，然后查看了相关的资料，总结下TSort算法在Rails中的应用           —— 初稿&lt;/p&gt;
+          <description>&lt;p&gt;平时候接触到的只是业务逻辑层面的使用，很少触及到算法方面的应用，在看rails应用的启动过程时，偶然间发现的一个算法应用，然后查看了相关的资料，总结下TSort算法在Rails中的应用。&lt;/p&gt;
 
 </description>
         
         <pubDate>Thu, 14 Feb 2019 10:18:00 +0000</pubDate>
         <link>
-        /ruby-tsort-usage</link>
-        <guid isPermaLink="true">/ruby-tsort-usage</guid>
+        http://localhost:4000/ruby-tsort-usage</link>
+        <guid isPermaLink="true">http://localhost:4000/ruby-tsort-usage</guid>
       </item>
       
     

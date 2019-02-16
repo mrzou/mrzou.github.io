@@ -26,7 +26,7 @@
     <style>.hljs { background: none; }</style>
 
     <!-- Ghost outputs important style and meta data with this tag -->
-        <link rel="canonical" href="//" />
+        <link rel="canonical" href="http://localhost:4000//" />
     <meta name="referrer" content="origin" />
     <link rel="next" href="/page2/" />
 
@@ -34,13 +34,13 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Finding The Way Home" />
     <meta property="og:description" content="学习的一些记录" />
-    <meta property="og:url" content="//" />
+    <meta property="og:url" content="http://localhost:4000//" />
     <meta property="og:image" content="/assets/images/cover1.jpg" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Finding The Way Home" />
     <meta name="twitter:description" content="学习的一些记录" />
-    <meta name="twitter:url" content="//" />
+    <meta name="twitter:url" content="http://localhost:4000//" />
     <meta name="twitter:image:src" content="/assets/images/cover1.jpg" />
 
     <script type="application/ld+json">
@@ -49,7 +49,7 @@
     "@type": "Website",
     "publisher": "Thinking",
     "name": "Finding The Way Home",
-    "url": "//",
+    "url": "http://localhost:4000//",
     "image": "/assets/images/cover1.jpg",
     "description": "学习的一些记录"
 }
@@ -131,7 +131,7 @@
             <h2 class="post-title"><a href="/ruby-tsort-usage">Ruby TSort 在Rails中的使用</a></h2>
         </header>
         <section class="post-excerpt">
-            <p>平时候接触到的只是业务逻辑层面的使用，很少触及到算法方面的应用，在看rails应用的启动过程时，偶然间发现的一个算法应用，然后查看了相关的资料，总结下TSort算法在Rails中的应用 —— 初稿 TSort的理解 TSort的意思: TSort 是topological sorting的缩写，是拓扑排序的意思，拓扑排序是有向图按其线性排列的一种算法，有个先后的排序顺序，而且不能有环出现，如果有环出现，则不算是拓扑结构了。一般拓扑结构可以用来表示元素的一些依赖关系的处理，如果事物A需要在事物B之前处理，则是B依赖于A的执行，B要先处理。 TSort的使用: TSort.tsort_each(each_node, each_child) 接受两个block作为参数，这两个block参数都接收另外一个block作为参数使用，另外的那个block是在TSort中传递进去的，作用是逐个作用在节点和子节点上。 each_node(&amp;block) 定义这个方法是因为在拓扑结构中的点可能是对象，或是数字，或是一些字母类的东西，但是点和点间产生关联需要有关联因子，each_node这个block就是取出关联因子，然后逐个作为参数去调用block就可以了。 each_child(&amp;block) 这个方法的目的和each_node差不多，但是这个方法的作用因子是下一个关联关系，如下图： ，其中A是应用到each_node中，B和C是应用到each_child中。 或者是让成员的集合去覆写 tsort_each_node 和 tsort_each_child 这两个方法，这两个方法的作用和上面的 each_node he each_child 的作用一样，只是调用... <a class="read-more" href="/ruby-tsort-usage">&raquo;</a></p>
+            <p>平时候接触到的只是业务逻辑层面的使用，很少触及到算法方面的应用，在看rails应用的启动过程时，偶然间发现的一个算法应用，然后查看了相关的资料，总结下TSort算法在Rails中的应用。 TSort的理解 TSort的意思: TSort是拓扑排序英文的缩写，拓扑排序是有向图按其线性排列的一种算法，有个先后的排序顺序，而且不能有环出现，如果有环出现，则不算是拓扑结构了。一般拓扑结构可以用来表示元素的一些依赖关系的处理，如果事物A需要在事物B之前处理，则是B依赖于A的执行，B要先处理，用箭头表示为 A -&gt; B。 TSort的使用: TSort.tsort_each(each_node, each_child) each_node和each_child是两个block，同时这两个block接收在TSort中定义的block1和block2作为参数传递进去(block1和block2其实是对应到each_node.call和each_child.call后面的块的)，逐个作用在各个节点和子节点上。意思是让用户自己定义传入进来的节点和子节点是什么。这些节点都作为这两个block的参数使用。 each_node(&amp;block) 定义这个方法是因为在拓扑结构中的点可能是对象，或是数字，或是一些字母类的东西，但是点和点间产生关联需要有关联因子，关联因子可能是一个数字，一个字符串，或是一个object。each_node这个block就是取出关联因子，然后逐个作为参数去调用block1就可以了。 each_child(&amp;block) 这个方法的目的和each_node差不多，但是这个方法的作用因子是对应的子节点，如下图： 其中A是作为block1的参数调用，B和C是作为block2的参数调用。 第二种用法是让成员的集合去覆写 tsort_each_node 和 tsort_each_child 这两个方法，这两个方法的作用和上面的 each_node he each_child 的作用一样，只是调用 tsort_each的对象不一样，这种方式是通过... <a class="read-more" href="/ruby-tsort-usage">&raquo;</a></p>
         </section>
         <footer class="post-meta">
             
