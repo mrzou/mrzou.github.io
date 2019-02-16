@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+   
+      <title>mrzou.github.io/jasper/</title>
+   
+   <link>http://localhost:4000</link>
+   <description>学习的一些记录</description>
+   <language>zh-cn</language>
+   <managingEditor> </managingEditor>
+   <atom:link href="rss" rel="self" type="application/rss+xml" />
+   
+	<item>
+	  <title>Rails中的一些辅助技巧</title>
+	  <link>//rails-helper</link>
+	  <author></author>
+	  <pubDate>2018-06-15T18:18:00+08:00</pubDate>
+	  <guid>//rails-helper</guid>
+	  <description><![CDATA[
+	     <p>占坑</p>
+
+	  ]]></description>
+	</item>
+
+
+</channel>
+</rss>

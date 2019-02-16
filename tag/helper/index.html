@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
     <!-- Page Meta -->
-    <title>Author</title>
+    <title>Thinking</title>
     <meta name="description" content="学习的一些记录" />
 
     <!-- Mobile Meta -->
@@ -26,31 +26,31 @@
     <style>.hljs { background: none; }</style>
 
     <!-- Ghost outputs important style and meta data with this tag -->
-        <link rel="canonical" href="http://localhost:4000//author/mrzou/" />
+        <link rel="canonical" href="http://localhost:4000//tag/helper/" />
     <meta name="referrer" content="origin" />
     <link rel="next" href="/page2/" />
 
     <meta property="og:site_name" content="Thinking" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Author" />
+    <meta property="og:title" content="Thinking" />
     <meta property="og:description" content="学习的一些记录" />
-    <meta property="og:url" content="http://localhost:4000//author/mrzou/" />
-    <meta property="og:image" content="/assets/images/cover4.jpg" />
+    <meta property="og:url" content="http://localhost:4000//tag/helper/" />
+    <meta property="og:image" content="/assets/images/cover2.jpg" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Author" />
+    <meta name="twitter:title" content="Thinking" />
     <meta name="twitter:description" content="学习的一些记录" />
-    <meta name="twitter:url" content="http://localhost:4000//author/mrzou/" />
-    <meta name="twitter:image:src" content="/assets/images/cover4.jpg" />
+    <meta name="twitter:url" content="http://localhost:4000//tag/helper/" />
+    <meta name="twitter:image:src" content="/assets/images/cover2.jpg" />
 
     <script type="application/ld+json">
 {
     "@context": "http://schema.org",
     "@type": "Website",
     "publisher": "Thinking",
-    "name": "Author",
-    "url": "http://localhost:4000//author/mrzou/",
-    "image": "/assets/images/cover4.jpg",
+    "name": "Thinking",
+    "url": "http://localhost:4000//tag/helper/",
+    "image": "/assets/images/cover2.jpg",
     "description": "学习的一些记录"
 }
     </script>
@@ -60,7 +60,7 @@
 
 
 </head>
-<body class="author-template nav-closed">
+<body class="tag-template nav-closed">
 
     <!-- The blog navigation links -->
     <div class="nav">
@@ -88,147 +88,32 @@
     <div class="site-wrapper">
 
         <!-- All the main content gets inserted here, index.hbs, post.hbs, etc -->
-        <!-- < default}} -->
+        <!-- dynamically overriding backgrounds for tags as well as descriptions -->
+
+
+<!-- default -->
 <!-- The tag above means - insert everything in this file into the [body] of the default.hbs template -->
 
-<!-- The big featured header -->
-
-<!-- Everything inside the #author tags pulls data from the author -->
-<!-- #author  -->
-    <header class="main-header author-head " style="background-image: url(/assets/images/cover4.jpg) ">
-        <nav class="main-nav overlay clearfix">
-            <a class="blog-logo" href="/"><img src="/assets/images/ghost.png" alt="Blog Logo" /></a>
+<!-- If we have a tag cover, display that - else blog cover - else nothing -->
+<header class="main-header tag-head " style="background-image: url(/assets/images/cover2.jpg) ">
+    <nav class="main-nav overlay clearfix">
+        <a class="blog-logo" href="/"><img src="/assets/images/ghost.png" alt="Blog Logo" /></a>
+        
+            <a class="menu-button icon-menu" href="#"><span class="word">Menu</span></a>
+        
+    </nav>
+    <div class="vertical">
+        <div class="main-header-content inner">
+            <h1 class="page-title">Helper</h1>
+            <h2 class="page-description">
             
-                <a class="menu-button icon-menu" href="#"><span class="word">Menu</span></a>
+			    A 1-post collection
             
-        </nav>
-    </header>
-
-    <section class="author-profile inner">
-        
-            
-        
-            
-        
-            
-        
-            
-        
-            
-        
-    </section>
-<!-- /author -->
-
-<!-- The main content area on the homepage -->
-<main id="content" class="content" role="main">
-
-    <!-- The tag below includes the post loop - partials/loop.hbs  -->
-        <!-- Previous/next page links - only displayed on page 2+ -->
-    <div class="extra-pagination inner">
-        
-            <nav class="pagination" role="pagination">
-    
-    <span class="page-number"> Page 1 of 1 </span>
-     
-</nav>
-        
+            </h2>
+        </div>
     </div>
+</header>
 
-    <!-- This is the post loop - each post will be output using this markup -->
-    
-    <article class="post">
-        <header class="post-header">
-            <h2 class="post-title"><a href="/ruby-tsort-usage">Ruby TSort 在Rails中的使用</a></h2>
-        </header>
-        <section class="post-excerpt">
-            <p>平时候接触到的只是业务逻辑层面的使用，很少触及到算法方面的应用，在看rails应用的启动过程时，偶然间发现的一个算法应用，然后查看了相关的资料，总结下TSort算法在Rails中的应用。
-
- <a class="read-more" href="/ruby-tsort-usage">&raquo;</a></p>
-        </section>
-        <footer class="post-meta">
-            
-                
-            
-                
-            
-                
-            
-                
-            
-                
-            
-
-            <!-- [[tags prefix=" on "]] -->
-            
-                on
-                
-                    
-                       <a href='/tag/ruby'>Ruby</a>,
-                    
-                
-                    
-                       <a href='/tag/rails'>Rails</a>
-                    
-                
-            
-            <time class="post-date" datetime="2019-02-14">14 Feb 2019</time>
-        </footer>
-    </article>
-    
-    <article class="post">
-        <header class="post-header">
-            <h2 class="post-title"><a href="/rails-helper">Rails中的一些辅助技巧</a></h2>
-        </header>
-        <section class="post-excerpt">
-            <p>占坑
- <a class="read-more" href="/rails-helper">&raquo;</a></p>
-        </section>
-        <footer class="post-meta">
-            
-                
-            
-                
-            
-                
-            
-                
-            
-                
-            
-
-            <!-- [[tags prefix=" on "]] -->
-            
-                on
-                
-                    
-                       <a href='/tag/ruby'>Ruby</a>,
-                    
-                
-                    
-                       <a href='/tag/rails'>Rails</a>,
-                    
-                
-                    
-                       <a href='/tag/helper'>Helper</a>
-                    
-                
-            
-            <time class="post-date" datetime="2018-06-15">15 Jun 2018</time>
-        </footer>
-    </article>
-    
-
-    <!-- Previous/next page links - displayed on every page -->
-    
-        <nav class="pagination" role="pagination">
-    
-    <span class="page-number"> Page 1 of 1 </span>
-     
-</nav>
-    
-
-
-</main>
 
 
         <!-- The tiny footer at the very bottom -->

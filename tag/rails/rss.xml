@@ -235,7 +235,20 @@ end
   <li><a href="http://blog.miskcoo.com/2016/07/tarjan-algorithm-strongly-connected-components">Tarjan算法寻找有向图的强连通分量</a></li>
   <li><a href="https://github.com/ruby/ruby/blob/trunk/lib/tsort.rb">tsrot source code</a></li>
   <li><a href="https://www.klausrubrecht.com/rubys-tsort-explained/">RUBY’S TSORT EXPLAINED</a></li>
+  <li><a href="https://www.cnblogs.com/nullzx/p/7968110.html">Tarjan算法：求解图的割点与桥（割边）</a></li>
 </ul>
+
+	  ]]></description>
+	</item>
+
+	<item>
+	  <title>Rails中的一些辅助技巧</title>
+	  <link>//rails-helper</link>
+	  <author></author>
+	  <pubDate>2018-06-15T18:18:00+08:00</pubDate>
+	  <guid>//rails-helper</guid>
+	  <description><![CDATA[
+	     <p>占坑</p>
 
 	  ]]></description>
 	</item>
