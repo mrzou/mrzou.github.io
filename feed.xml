@@ -8,6 +8,21 @@
     
       
       <item>
+        <title>Ruby Sidekiq的使用</title>
+        
+          <description>&lt;p&gt;Sidekiq 作为后台的一种异步定时任务队列处理服务，是通过什么方式去处理队列任务的，和Redis是怎么配合的？涉及到的一些技术原理一直比较模糊，有空总结了一下查看Sidekiq源码学到的东西。&lt;/p&gt;
+
+</description>
+        
+        <pubDate>Sun, 03 Mar 2019 10:18:00 +0000</pubDate>
+        <link>
+        http://localhost:4000/ruby-sidekiq</link>
+        <guid isPermaLink="true">http://localhost:4000/ruby-sidekiq</guid>
+      </item>
+      
+    
+      
+      <item>
         <title>Ruby TSort 在Rails中的使用</title>
         
           <description>&lt;p&gt;平时候接触到的只是业务逻辑层面的使用，很少触及到算法方面的应用，在看rails应用的启动过程时，偶然间发现的一个算法应用，然后查看了相关的资料，总结下TSort算法在Rails中的应用。&lt;/p&gt;
