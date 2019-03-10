@@ -225,6 +225,13 @@ end
 
     <!-- [[! next_post ]] -->
     
+        <a class="read-next-story " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-puma">
+            <section class="post">
+                <h2>Ruby Puma 原理解析</h2>
+                <p>App服务器一直都是在后台默默的接受，处理那些乱七八糟的请求。一般开发很少会接触到这些方面的使用，除非是为了优化服务器才会去配置Puma。使用的时候也只是大概了解Puma接受的一些请求转化到Rails App所做的一些工作。但是对于Puma中的请求转化和处理一直比较迷惑，现在有时间，看了一下源码，学习总结了下Puma的实现过程，原理和之前产生的一些疑问。其中单进程模式介绍的比价详细，这种模式是集群模式的特例，只不过集群模式创建了多几个woker而已，其中对应请求的处理其实是一样的。下面的Puma版本是3.12.0。 ### 启动过程 1. 合并传入的参数和设置默认参数 2. 初始化 `Launcher` 类，其中会根据workers的数量去决定初始化集群模式还是单进程模式 3. 执行 `@launcher.run`，其中会执行 `@runner.run` 方法，这个方法是Single类中的run方法...</p>
+            </section>
+        </a>
+    
     <!-- [[! /next_post ]] -->
     <!-- [[! prev_post ]] -->
     

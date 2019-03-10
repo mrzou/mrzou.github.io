@@ -8,6 +8,21 @@
     
       
       <item>
+        <title>Ruby Puma 原理解析</title>
+        
+          <description>&lt;p&gt;App服务器一直都是在后台默默的接受，处理那些乱七八糟的请求。一般开发很少会接触到这些方面的使用，除非是为了优化服务器才会去配置Puma。使用的时候也只是大概了解Puma接受的一些请求转化到Rails App所做的一些工作。但是对于Puma中的请求转化和处理一直比较迷惑，现在有时间，看了一下源码，学习总结了下Puma的实现过程，原理和之前产生的一些疑问。其中单进程模式介绍的比价详细，这种模式是集群模式的特例，只不过集群模式创建了多几个woker而已，其中对应请求的处理其实是一样的。下面的Puma版本是3.12.0。&lt;/p&gt;
+
+</description>
+        
+        <pubDate>Sat, 09 Mar 2019 10:18:00 +0000</pubDate>
+        <link>
+        http://localhost:4000/ruby-puma</link>
+        <guid isPermaLink="true">http://localhost:4000/ruby-puma</guid>
+      </item>
+      
+    
+      
+      <item>
         <title>Ruby Sidekiq的使用</title>
         
           <description>&lt;p&gt;Sidekiq 作为后台的一种异步定时任务队列处理服务，是通过什么方式去处理队列任务的，和Redis是怎么配合的？涉及到的一些技术原理一直比较模糊，有空总结了一下查看Sidekiq源码学到的东西。&lt;/p&gt;
