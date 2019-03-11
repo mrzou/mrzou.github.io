@@ -8,6 +8,21 @@
     
       
       <item>
+        <title>Ruby Middleware</title>
+        
+          <description>&lt;p&gt;&lt;a href=&quot;https://rack.github.io/&quot;&gt;Rack官网&lt;/a&gt;对于Rack的介绍比较简单，只是介绍了Rack的作用和基本的使用。不过也可能因为不复杂，所以才用简单的几段话介绍了Rack。虽然我们不用了解middleware的调用原理也可以开发出能使用的middleware，但是总有点不知所以然的感觉，所以抽空总结了下Rack中middleware的调用原理。&lt;/p&gt;
+
+</description>
+        
+        <pubDate>Sat, 09 Mar 2019 10:18:00 +0000</pubDate>
+        <link>
+        http://localhost:4000/ruby-rack</link>
+        <guid isPermaLink="true">http://localhost:4000/ruby-rack</guid>
+      </item>
+      
+    
+      
+      <item>
         <title>Ruby Puma 原理解析</title>
         
           <description>&lt;p&gt;App服务器一直都是在后台默默的接受，处理那些乱七八糟的请求。一般开发很少会接触到这些方面的使用，除非是为了优化服务器才会去配置Puma。使用的时候也只是大概了解Puma接受的一些请求转化到Rails App所做的一些工作。但是对于Puma中的请求转化和处理一直比较迷惑，现在有时间，看了一下源码，学习总结了下Puma的实现过程，原理和之前产生的一些疑问。其中单进程模式介绍的比价详细，这种模式是集群模式的特例，只不过集群模式创建了多几个woker而已，其中对应请求的处理其实是一样的。下面的Puma版本是3.12.0。&lt;/p&gt;

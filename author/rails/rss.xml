@@ -12,6 +12,278 @@
    <atom:link href="rss" rel="self" type="application/rss+xml" />
    
 	<item>
+	  <title>Ruby Middleware</title>
+	  <link>//ruby-rack</link>
+	  <author></author>
+	  <pubDate>2019-03-09T18:18:00+08:00</pubDate>
+	  <guid>//ruby-rack</guid>
+	  <description><![CDATA[
+	     <p><a href="https://rack.github.io/">Rack官网</a>对于Rack的介绍比较简单，只是介绍了Rack的作用和基本的使用。不过也可能因为不复杂，所以才用简单的几段话介绍了Rack。虽然我们不用了解middleware的调用原理也可以开发出能使用的middleware，但是总有点不知所以然的感觉，所以抽空总结了下Rack中middleware的调用原理。</p>
+
+<h3 id="rack-middleware的使用">Rack middleware的使用</h3>
+
+<ol>
+  <li>配置config.ru文件，定义好要用到的middleware和要run的middleware，为什么有些middleware需要run，有些需要use，下面再详细介绍。下面是一个简单的调用。
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  # ./config.ru
+  app = Proc.new { |env| ['200', {'Content-Type' =&gt; 'text/html'}, ['get rack\'d']] }
+  run app
+</code></pre></div>    </div>
+    <p>接着执行<code class="highlighter-rouge">rackup</code>命令应用就可以跑起来了。</p>
+  </li>
+  <li>
+    <p>同时还可以把middleware定义成一个类，但是要在初始化实例的时候初始化@app和定义一个call方法，并且在call方法中需要调用<code class="highlighter-rouge">@app.call(env)</code>，如下:</p>
+
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> # rack_demo.rb
+ require 'rack'
+
+ class Timing
+   def initialize(app)
+     @app = app
+   end
+
+   def call(env)
+     ts = Time.now
+     status, headers, body = @app.call(env)
+     elapsed_time = Time.now - ts
+     puts "Timing: #{env['REQUEST_METHOD']} #{env['REQUEST_URI']} #{elapsed_time.round(3)}"
+     return [status, headers, body]
+   end
+ end
+
+ app = proc do |env|
+   ['200', {'Content-Type' =&gt; 'text/html'}, ['Hello, Rack!']]
+ end
+
+ Rack::Handler::WEBrick.run(Timing.new(app), :Port =&gt; 9292, :Host =&gt; '0.0.0.0')
+</code></pre></div>    </div>
+
+    <p>执行<code class="highlighter-rouge">ruby rack_demo.rb</code>就可以跑起一个服务了。</p>
+  </li>
+</ol>
+
+<p>middleware的具体使用和返回格式要求这里不详细介绍，可以参考<a href="https://ruby-china.org/topics/31592">Ruby Rack 及其应用</a>。同时上面的两种使用方式的作用原理是一样的。下面再详细分析。</p>
+
+<h3 id="rack-middleware实现的原理">Rack Middleware实现的原理</h3>
+
+<p>定义好config.ru配置文件后在当前目录执行<code class="highlighter-rouge">rackup</code>命令，会去到ruby对应的bin目录执行文件。一般在ruby安装好后都会有这个二进制文件的，在我本地的位置是 <code class="highlighter-rouge">~/.rvm/gems/ruby-2.5.3/bin/rackup</code></p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.5.3/bin/rackup
+require 'rubygems'
+
+version = "&gt;= 0.a"
+...
+
+if Gem.respond_to?(:activate_bin_path)
+  load Gem.activate_bin_path('rack', 'rackup', version)
+else
+  gem "rack", version
+  load Gem.bin_path("rack", "rackup", version)
+end
+</code></pre></div></div>
+
+<p>上面源码会执行后面的rack gem下面的rackup二进制文件，其中的源码为:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">#!/usr/bin/env ruby</span>
+<span class="c1"># ~/.rvm/gems/ruby-2.5.3/gems/rack-2.0.6/bin/rackup</span>
+<span class="nb">require</span> <span class="s2">"rack"</span>
+<span class="no">Rack</span><span class="o">::</span><span class="no">Server</span><span class="p">.</span><span class="nf">start</span>
+</code></pre></div></div>
+
+<p>主要是为了启动Rack Server，那启动的过程又做了什么东西呢？
+调用栈从 <code class="highlighter-rouge">def self.start</code> =&gt; <code class="highlighter-rouge">initialize</code> =&gt; <code class="highlighter-rouge">parse_options</code> 这一系列的调用只是为了初始化一个Server，然后加上一些默认的Options配置，初始化后主要是加了如下的默认配置:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  :environment =&gt; "development",
+  :pid         =&gt; nil,
+  :Port        =&gt; 9292,
+  :Host        =&gt; "localhost",
+  :AccessLog   =&gt; [],
+  :config      =&gt; "config.ru"
+}
+</code></pre></div></div>
+
+<p>其中config中的值config.ru就是默认的配置文件，然后就是实例执行run方法了。run方法中调用了wrapped_app方法，这个方法主要是把那些middleware汇总为一个app的方法。沿着方法调用栈继续查看，其中<code class="highlighter-rouge">build_app</code>方法比较重要。源码如下:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def build_app(app)
+  middleware[options[:environment]].reverse_each do |middleware|
+    middleware = middleware.call(self) if middleware.respond_to?(:call)
+    next unless middleware
+    klass, *args = middleware
+    app = klass.new(app, *args)
+  end
+  app
+end
+
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">middleware[options[:environment]]</code>求得的值是Rack中默认的middleware。遍历的块中每个middleware都会去创建一个实例，以app变量作为参数传入，这就是为什么每个middleware在initialize的时候都需要传入一个app变量，并初始化赋值给@app实例变量。上面的迭代遍历过程最后方法返回的app会变成如下的链式反应:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#&lt;Rack::ContentLength:0x00007ff72d568200
+ @app=
+  #&lt;Rack::Chunked:0x00007ff72d568ef8
+   @app=
+    #&lt;Rack::CommonLogger:0x00007ff72d569ce0
+     @app=
+      #&lt;Rack::ShowExceptions:0x00007ff72e940c28
+       @app=
+        #&lt;Rack::Lint:0x00007ff72e941ee8
+         @app=
+          #&lt;Rack::TempfileReaper:0x00007ff72e943018
+           @app=
+            #&lt;StatusLogger:0x00007ff72d4a0570
+             @app=
+              #&lt;StatusLoggear:0x00007ff72d4a1088
+               @app=
+                #&lt;Proc:0x00007ff72d4a2820@/Users/Cain/code/ruby/rack/config.ru:30&gt;&gt;&gt;&gt;
+</code></pre></div></div>
+<p>这样通过调用<code class="highlighter-rouge">app.call</code>可以调用到所有middleware的call方法。
+如下例子：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#config.ru
+class FirstMidd
+  def initialize(app)
+    @app = app
+  end
+
+  def call(env)
+    puts "1"
+    status, head, body = @app.call(env)
+    puts "7"
+    [status, head, body]
+  end
+end
+
+class SecondMidd
+  def initialize(app)
+    @app = app
+  end
+
+  def call(env)
+    puts "2"
+    status, head, body = @app.call(env)
+    puts "6"
+    [status, head, body]
+  end
+end
+
+class ThirdMidd
+  def initialize(app)
+    @app = app
+  end
+
+  def call(env)
+    puts "3"
+    status, head, body = @app.call(env)
+    puts "5"
+    [status, head, body]
+  end
+end
+
+class Top
+  def call(env)
+    puts "4"
+    [200, {'Content-Type' =&gt; 'text/plain'}, ["hello, this is a test."]]
+  end
+end
+
+use FirstMidd
+use SecondMidd
+use ThirdMidd
+run Top.new
+</code></pre></div></div>
+
+<p>发送一个请求<code class="highlighter-rouge">curl http://localhost:9292</code>后，服务器会会按照 <code class="highlighter-rouge">=&gt; 1, 2, 3, 4, 5, 6, 7</code> 的顺序输出。上面的执行顺序体现了一个调用栈的调用过程。
+同时上面还有一个app参数值的传入，求app过程如下:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  # ~/.rvm/gems/ruby-2.5.3/gems/rack-2.0.6/lib/rack/server.rb
+  def build_app_and_options_from_config
+    ...
+
+    app, options = Rack::Builder.parse_file(self.options[:config], opt_parser)
+    @options.merge!(options) { |key, old, new| old }
+    app
+  end
+
+  # ~/.rvm/gems/ruby-2.5.3/gems/rack-2.0.6/lib/rack/builder.rb
+  def self.parse_file(config, opts = Server::Options.new)
+    options = {}
+    if config =~ /\.ru$/
+      ...
+      app = new_from_string cfgfile, config
+    else
+      ...
+    end
+    return app, options
+  end
+
+  def self.new_from_string(builder_script, file="(rackup)")
+    eval "Rack::Builder.new {\n" + builder_script + "\n}.to_app",
+        TOPLEVEL_BINDING, file, 0
+  end
+</code></pre></div></div>
+
+<p>最后会调用new_from_string这个方法。这个方法就是通过eval执行之前config.ru中的内容。其中<code class="highlighter-rouge">Builder#to_app</code>方法执行了 <code class="highlighter-rouge">app = @use.reverse.inject(app) { |a,e| e[a] }</code> 把 <code class="highlighter-rouge">config.ru</code> 中run方法调用的那些middleware实例逐个迭代作为参数嵌入到app变量中，app最终的效果如上面<code class="highlighter-rouge">build_app</code>方法中最后的app变量的形式一样。最终这个app值作为build_app方法的实参调用，最终合并成最终条链条。</p>
+
+<p>上面留了个问题，为什么在 <code class="highlighter-rouge">config.ru</code> 中有些middleware需要用use，而最后会有个run方法的调用。因为run实例中的call方法是在server里面最后调用的方法，call方法按照状态，头部，body的形式返回。和其它的一些middleware初始化@app，然后在call方法中执行<code class="highlighter-rouge">@app.call(env)</code>还是有些区别的，所以在Rack里的实现就把run的那个middleware实例作为最终的[status, headers, body]形式返回给前面的middleware逐层去处理逻辑了。</p>
+
+<h3 id="rack和应用服务器的对接">Rack和应用服务器的对接</h3>
+
+<p>Rack是应用服务器和应用的连接桥梁，具体是怎么实现的呢？其实Rack只是按照一定的规则去找出应用服务器，然后通过执行其中定义好的<code class="highlighter-rouge">run</code>方法，把上面链接好的迭代app传入服务器中去执行，从而达到中间桥梁的作用，主要的代码在<code class="highlighter-rouge">Rack::Server#start</code>的时候run了应用服务器。如下：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.5.3/gems/rack-2.0.6/lib/rack/server.rb
+
+def start
+  ...
+  server.run wrapped_app, options, &amp;blk
+end
+</code></pre></div></div>
+
+<p>这行代码中，server的调用过程如下:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.5.3/gems/rack-2.0.6/lib/rack/server.rb
+
+def server
+  @_server ||= Rack::Handler.get(options[:server])
+
+  unless @_server
+    @_server = Rack::Handler.default
+
+    # We already speak FastCGI
+    @ignore_options = [:File, :Port] if @_server.to_s == 'Rack::Handler::FastCGI'
+  end
+
+  @_server
+end
+</code></pre></div></div>
+
+<p>如果没有配置对应的:server选项，调用<code class="highlighter-rouge">Rack::Handler.get</code>会返回nil，然后调用<code class="highlighter-rouge">Rack::Handler.default</code>去查找对应的server。会通过<code class="highlighter-rouge">pick ['puma', 'thin', 'webrick']</code>按照默认服务器名字的顺序去查找对应的服务器handler。
+如果require了puma，而puma因为定义了一个覆盖Handler中default的方法，如下:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># /Users/Cain/.rvm/gems/ruby-2.5.3/gems/puma-3.12.0/lib/puma/rack_default.rb
+require 'rack/handler/puma'
+
+module Rack::Handler
+  def self.default(options = {})
+    Rack::Handler::Puma
+  end
+end
+</code></pre></div></div>
+
+<p>这时 <code class="highlighter-rouge">Rack::Handler.default</code> 返回的就是 <code class="highlighter-rouge">Rack::Handler::Puma</code> 这个类。这时调用<code class="highlighter-rouge">server.run wrapped_app, options, &amp;blk</code>就相当于调用了<code class="highlighter-rouge">Rack::Handler::Puma.run</code>，从而在puma中接到可以处理的请求后再执行<code class="highlighter-rouge">app.call(env)</code>，就会出现一系列的链式调用。从而保证middleware都可以被调用到call方法，然后再次返回处理逻辑。</p>
+
+<p>总结：Rack还做了很多的其它处理工作，把app和app server给串联起来只是其中的一部分。总的来说就是当一个请求过来时，可以通过一个个的middleware链式的调用，完成一些列的功能调用。从而细分了各个功能点，方便了开发人员更好的去扩展。</p>
+
+<h3 id="ref">Ref:</h3>
+
+<ul>
+  <li><a href="https://ruby-china.org/topics/21517">为什么我们需要 Rack ?</a></li>
+  <li><a href="https://ruby-china.org/topics/31592">Ruby Rack 及其应用 (上)</a></li>
+</ul>
+
+	  ]]></description>
+	</item>
+
+	<item>
 	  <title>Ruby Puma 原理解析</title>
 	  <link>//ruby-puma</link>
 	  <author></author>
@@ -473,6 +745,236 @@ end
 <h3 id="总结">总结</h3>
 
 <p>在调用代码是先把任务加入到队列中，这是需要判断任务是哪种类型，如果是立即的，那就直接放入到队列中，如果是定时的，则先把任务放入到scheduled队列中，然后再由poller按时间顺序轮询安排，如果有需要执行的任务就放入队列中去。然后开启的25个workers就会轮询队列中的任务，不间断的取出来执行。到此，整个流程就走通了。</p>
+
+	  ]]></description>
+	</item>
+
+	<item>
+	  <title>Ruby TSort 在Rails中的使用</title>
+	  <link>//ruby-tsort-usage</link>
+	  <author></author>
+	  <pubDate>2019-02-14T18:18:00+08:00</pubDate>
+	  <guid>//ruby-tsort-usage</guid>
+	  <description><![CDATA[
+	     <p>平时候接触到的只是业务逻辑层面的使用，很少触及到算法方面的应用，在看rails应用的启动过程时，偶然间发现的一个算法应用，然后查看了相关的资料，总结下TSort算法在Rails中的应用。</p>
+
+<h3 id="tsort的理解">TSort的理解</h3>
+
+<p>TSort的意思: TSort是拓扑排序英文的缩写，拓扑排序是有向图按其线性排列的一种算法，有个先后的排序顺序，而且不能有环出现，如果有环出现，则不算是拓扑结构了。一般拓扑结构可以用来表示元素的一些依赖关系的处理，如果事物A需要在事物B之前处理，则是B依赖于A的执行，B要先处理，用箭头表示为 A -&gt; B。</p>
+
+<h3 id="tsort的使用">TSort的使用:</h3>
+<ol>
+  <li>
+    <p><code class="highlighter-rouge">TSort.tsort_each(each_node, each_child)</code> each_node和each_child是两个block，同时这两个block接收在TSort中定义的<a href="#block-source1">block1</a>和<a href="#block-source2">block2</a>作为参数传递进去(block1和block2其实是对应到each_node.call和each_child.call后面的块的)，逐个作用在各个节点和子节点上。意思是让用户自己定义传入进来的节点和子节点是什么。这些节点都作为这两个block的参数使用。</p>
+  </li>
+  <li>each_node(&amp;block) 定义这个方法是因为在拓扑结构中的点可能是对象，或是数字，或是一些字母类的东西，但是点和点间产生关联需要有关联因子，关联因子可能是一个数字，一个字符串，或是一个object。each_node这个block就是取出关联因子，然后逐个作为参数去调用<a href="#block-source1">block1</a>就可以了。</li>
+  <li>
+    <p>each_child(&amp;block) 这个方法的目的和each_node差不多，但是这个方法的作用因子是对应的子节点，如下图：
+  <img src="assets/images/simple_relation.png" alt="关系图" />
+  其中A是作为<a href="#block-source1">block1</a>的参数调用，B和C是作为<a href="#block-source2">block2</a>的参数调用。</p>
+  </li>
+  <li>第二种用法是让成员的集合去覆写 <code class="highlighter-rouge">tsort_each_node</code> 和 <code class="highlighter-rouge">tsort_each_child</code> 这两个方法，这两个方法的作用和上面的 <code class="highlighter-rouge">each_node</code> he <code class="highlighter-rouge">each_child</code> 的作用一样，只是调用 <code class="highlighter-rouge">tsort_each</code>的对象不一样，这种方式是通过 <code class="highlighter-rouge">include 'tsort'</code> 模块，然后用成员集合去调用 <code class="highlighter-rouge">tsort_each</code> 方法的。</li>
+</ol>
+
+<h3 id="使用例子">使用例子：</h3>
+<p>如下图的关系，需要按照依赖关系逐个输出节点。
+<img src="assets/images/simple_relation1.png" alt="图形关系" />
+这个例子中可以用如下关系表示A, B, C, D节点</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>A = B + C
+B = C + 2
+C = 2
+D = B + A + 1
+</code></pre></div></div>
+
+<p>要求出这些未知数，应该先求解出这些数的顺序。</p>
+
+<p>这些数可以用两种数据结构表示关系，一个是直接hash，另外一个有可能这些依赖关系只是对象的一个属性而已，这就是为什么需要自定义 <code class="highlighter-rouge">each_node</code> 和 <code class="highlighter-rouge">each_child</code> 的原因。</p>
+
+<ul>
+  <li>用hash表示节点关系求解如下:</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  graph = { A: [:D], B: [:A, :D], C: [:A, :B], D: [] }
+  each_node = lambda {|&amp;b| graph.each_key(&amp;b) }
+  each_child = lambda { |n, &amp;b| graph[n].each(&amp;b) }
+
+  TSort.tsort_each(each_node, each_child) {|scc|
+    p scc
+  }
+  # puts:
+  # :D
+  # :A
+  # :B
+  # :C
+</code></pre></div></div>
+
+<ul>
+  <li>用对象的关联表示节点关系求解如下:</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class NodeObj
+  attr_reader :node, :children
+
+  def initialize(node, children)
+    @node =node
+    @children = children
+  end
+end
+
+class TSortTest
+  include TSort
+
+  def initialize(node_objs)
+    @node_objs = node_objs
+  end
+
+  def tsort_each_node(&amp;block)
+    @node_objs.map(&amp;:node).each(&amp;block)
+  end
+
+  def tsort_each_child(node, &amp;block)
+    @node_objs.select do |node_obj|
+      node_obj.children.include? node
+    end.map(&amp;:node).each(&amp;block)
+  end
+end
+
+node_objs = []
+node_objs.push NodeObj.new('C','2')
+node_objs.push NodeObj.new('D','B + A + 1')
+node_objs.push NodeObj.new('A','B + C')
+node_objs.push NodeObj.new('B','C + 2')
+
+tsort_test = TSortTest.new(node_objs)
+tsort_test.tsort_each do |node|
+  p node
+end
+# puts:
+# :D
+# :A
+# :B
+# :C
+</code></pre></div></div>
+
+<p>上面是根据图的不同数据结构的表示方法而产生的两种使用TSort的方式，都是一样的调用，只不过<strong>include ‘tsort’</strong>那种方式是用的直接定义两个方法的方式去用，而 <code class="highlighter-rouge">TSort.tsort_each</code> 是把块作为参数传递进去。在Rails执行初始化的依赖中使用的是后一种方式。</p>
+
+<h3 id="在rails中的应用">在rails中的应用</h3>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># /Users/Cain/.rvm/gems/ruby-2.5.3/gems/railties-5.2.1.1/lib/rails/initializable.rb
+
+class Collection &lt; Array
+  include TSort
+
+  alias :tsort_each_node :each
+  def tsort_each_child(initializer, &amp;block)
+    select { |i| i.before == initializer.name || i.name == initializer.after }.each(&amp;block)
+  end
+
+  def +(other)
+    Collection.new(to_a + other.to_a)
+  end
+end
+</code></pre></div></div>
+
+<p>上面定义了一个继承Array的类，这个类里定义了需要覆盖的两个方法，其中 <code class="highlighter-rouge">tsort_each_node</code> 用 Array中的<code class="highlighter-rouge">each</code> 这个方法表示集合中的成员就表示一个节点，而 <code class="highlighter-rouge">tsort_each_child</code> 方法求得的关联孩子节点需要通过其它Raitie中定义的 <code class="highlighter-rouge">initializer</code> before 和 after这两个option去取得联系，从而用那些子节点作为参数在block中执行。</p>
+
+<h3 id="tsort源码解析">TSort源码解析</h3>
+
+<h4 id="tsort使用的基本算法">TSort使用的基本算法</h4>
+
+<p>TSort是基于Tarjan算法来进行排序的，在这里不详细介绍Tarjan排序算法，具体可以参考<a href="http://blog.miskcoo.com/2016/07/tarjan-algorithm-strongly-connected-components">Tarjan算法寻找有向图的强连通分量</a>，这里只讲解Tarjan算法如何在拓扑排序中使用。</p>
+
+<ol>
+  <li>
+    <p>Tarjan是用来查找强连通分量的，而一个节点的强连通分量是多个节点组成强连通分量的特殊情况，所以TSort中如果算法中找到有多个节点的强连通分量时就会抛出 <code class="highlighter-rouge">Cyclic</code> 这个错误，表示存在环图，不符合拓扑结构。而只有一个节点的强连通分量根据进入栈中后进先出的规则，可以做到按依赖排序的先后顺序出来。</p>
+  </li>
+  <li>
+    <p>该算法是会有三个数据结构，一个是dnf数组，初始化时按照访问节点顺序加1，用来存储访问节点的顺序的，其中的值表示节点的位置。另外一个是low数组，初始值和dnf中的值一样，这个数组是用来存储子节点不通过父节点访问到的祖父节点的最小时间戳是多少，这里的时间戳可以理解为low中的数值。</p>
+  </li>
+  <li>
+    <p>在算法中判断该节点是不是强连通分量，是不是应该出栈是通过判断dnf和low对应的节点是否一样来判断的，如果一样了，表示这个节点不能回到祖先节点，说明该节点不在一个多节点的强连通分量重，则这个节点是单独的一个强连通分量，如果不相等，说明这个节点可以回到祖先节点，那这个节点肯定在多个节点的强连通分量上，这是就不满足拓扑结构了。下面介绍的实现 TSort的就是通过这种方式去实现的。</p>
+  </li>
+</ol>
+
+<h4 id="tsort-源码解析">TSort 源码解析</h4>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def TSort.tsort_each(each_node, each_child) # :yields: node
+  return to_enum(__method__, each_node, each_child) unless block_given?
+
+  TSort.each_strongly_connected_component(each_node, each_child) {|component|
+    if component.size == 1 # 判断强连通分量是否有多个节点，如果有多个则不满足拓扑结构
+      yield component.first
+    else
+      raise Cyclic.new("topological sort failed: #{component.inspect}")
+    end
+  }
+end
+</code></pre></div></div>
+
+<p>这里的调用 <code class="highlighter-rouge">each_strongly_connected_component</code> 方法加的block就是为了判断强连通分量中的节点是否满足只有一个的情况，如果有多个就不满足拓扑图了，会抛出错误。</p>
+
+<h5 id="求各个节点的最强连通分量"><a name="block-source1">求各个节点的最强连通分量</a></h5>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def TSort.each_strongly_connected_component(each_node, each_child) # :yields: nodes
+  return to_enum(__method__, each_node, each_child) unless block_given?
+
+  id_map = {} # 表示点的位置，为了避免重复调用节点去求强连通分量
+  stack = []
+  each_node.call {|node|
+    unless id_map.include? node   # 如果已经存在那个节点，表示节点的关联关系已经被求过了，不需要进一步求了
+      TSort.each_strongly_connected_component_from(node, each_child, id_map, stack) {|c|
+        yield c
+      }
+    end
+  }
+  nil
+end
+</code></pre></div></div>
+
+<p>这个方法主要是把每个节点作为block的参数去调用，由于一个拓扑图是有前有后的，说明肯定有根节点存在，但是在表示的映射的数据对结构中，不能确保第一次用的节点就是根节点，也有可能是最后个节点，所以需要遍历这些节点去求到他们的强连通图。</p>
+
+<h5 id="求节点的最强连通分量"><a name="block-source2">求节点的最强连通分量</a></h5>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def TSort.each_strongly_connected_component_from(node, each_child, id_map={}, stack=[]) # :yields: nodes
+  return to_enum(__method__, node, each_child, id_map, stack) unless block_given?
+
+  minimum_id = node_id = id_map[node] = id_map.size # node_id 是元素的位置，minimum_id 是low数组中对应的值
+  stack_length = stack.length
+  stack &lt;&lt; node
+
+  each_child.call(node) {|child|
+    if id_map.include? child # 表示遇到已经访问过的节点
+      child_id = id_map[child]
+      minimum_id = child_id if child_id &amp;&amp; child_id &lt; minimum_id # child_id 不为空表示没有出栈且没有被置为nil
+    else # 这是遍历子节点
+      sub_minimum_id =
+        TSort.each_strongly_connected_component_from(child, each_child, id_map, stack) {|c|
+          yield c
+        }
+      minimum_id = sub_minimum_id if sub_minimum_id &lt; minimum_id
+    end
+  }
+
+  if node_id == minimum_id # 如果这两个值相等，表示栈里的数据都是一个强连通分量，则把栈里的数据都退出来，这些都是一个强连通分量来的。
+    component = stack.slice!(stack_length .. -1)
+    component.each {|n| id_map[n] = nil}
+    yield component
+  end
+
+  minimum_id
+end
+</code></pre></div></div>
+
+<p>拓扑排序的实现主要是这个方法，用了递归去遍历各个节点，然后逐个加上标识，然后判断是否满足退栈的条件，如果dnf和low中对应的值不相等，说明栈里的点是在一个环里，然后一直回退，直到遇到两个值相等的点，两个值相等的点是环中的根节点，这时就把栈里的数值按顺序退出去就行了。退出的这些数值就是一个强连通分量。如有这种关系的图 <code class="highlighter-rouge">graph = { B: [:A], A: [:D], C: [:B], D: [:C] }</code> 这其实是一个环状图，从点B开始作为node执行each_child后面的block，递归到C点，这时回到B，B是已经访问过的节点，说明是C的祖先节点或有共同的祖先的节点，由于B节点的low值不为nil，而且小于C，所以C的low值会变。一直会退到先前的B节点，这时B点的dnf和low值相等，所以是根节点，这时栈里的多个节点是一个强连通分量，这时就不满足拓扑结构了，就会抛出错误。</p>
+
+<h4 id="ref">Ref:</h4>
+<ul>
+  <li><a href="http://blog.miskcoo.com/2016/07/tarjan-algorithm-strongly-connected-components">Tarjan算法寻找有向图的强连通分量</a></li>
+  <li><a href="https://github.com/ruby/ruby/blob/trunk/lib/tsort.rb">tsrot source code</a></li>
+  <li><a href="https://www.klausrubrecht.com/rubys-tsort-explained/">RUBY’S TSORT EXPLAINED</a></li>
+  <li><a href="https://www.cnblogs.com/nullzx/p/7968110.html">Tarjan算法：求解图的割点与桥（割边）</a></li>
+</ul>
 
 	  ]]></description>
 	</item>

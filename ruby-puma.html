@@ -533,6 +533,13 @@ end
 
     <!-- [[! next_post ]] -->
     
+        <a class="read-next-story " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-rack">
+            <section class="post">
+                <h2>Ruby Middleware</h2>
+                <p>[Rack官网](https://rack.github.io/)对于Rack的介绍比较简单，只是介绍了Rack的作用和基本的使用。不过也可能因为不复杂，所以才用简单的几段话介绍了Rack。虽然我们不用了解middleware的调用原理也可以开发出能使用的middleware，但是总有点不知所以然的感觉，所以抽空总结了下Rack中middleware的调用原理。 ### Rack middleware的使用 1. 配置config.ru文件，定义好要用到的middleware和要run的middleware，为什么有些middleware需要run，有些需要use，下面再详细介绍。下面是一个简单的调用。 ``` # ./config.ru app = Proc.new { |env| ['200',...</p>
+            </section>
+        </a>
+    
     <!-- [[! /next_post ]] -->
     <!-- [[! prev_post ]] -->
     
