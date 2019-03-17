@@ -12,6 +12,69 @@
    <atom:link href="rss" rel="self" type="application/rss+xml" />
    
 	<item>
+	  <title>Srpocket 如何加入gem静态文件路径</title>
+	  <link>//ruby-sprocket</link>
+	  <author></author>
+	  <pubDate>2019-03-09T18:18:00+08:00</pubDate>
+	  <guid>//ruby-sprocket</guid>
+	  <description><![CDATA[
+	     <p>平时候我们如果用Gem引进的方式去加载前端的插件，一般我们都是bundle了gem之后就直接去require对应的文件了。在引的时候一直有个疑问，Rails是如何加载这些插件进来的？它是怎么知道那个文件的位置的？其中用了什么手段去做的，一直比较好奇，现在有空总结了一下。</p>
+
+<h3 id="sprocket对gem中静态文件的加载">Sprocket对gem中静态文件的加载</h3>
+
+<p>在sprockets-rails gem中为Rails::Engine执行了一个initializer的方法:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  initializer :append_assets_path, :group =&gt; :all do |app|
+    app.config.assets.paths.unshift(*paths["vendor/assets"].existent_directories)
+    app.config.assets.paths.unshift(*paths["lib/assets"].existent_directories)
+    app.config.assets.paths.unshift(*paths["app/assets"].existent_directories)
+  end
+</code></pre></div></div>
+
+<p>这个方法是在应用程序启动时会去自动加载执行的一个方法，这个方法的目的就是为每个Engine自动加入定义好的路径，然后在Sprocket require到对应的插件时可以去到对应的搜索路径下去查找文件加载进来(一般是application.js那种manifest)。那为什么可以做到每个插件继承了Engine就可以自动加载这些路径呢？这个可能要涉及到Railties对于Initializable模块的处理了。</p>
+
+<h3 id="initializable">Initializable</h3>
+
+<p>每个include了这个类的类都可以现在类的加载阶段把一些需要初始化的东西放到类变量 <code class="highlighter-rouge">@initializers</code> 中，然后在应用程序的environment.rb中执行 <code class="highlighter-rouge">Rails.application.initialize!</code> 的时候再一起去初始化执行这些<code class="highlighter-rouge">initializer</code> 中的块。但是对Railtie的 <code class="highlighter-rouge">initializers</code> 的求法如下:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def railties_initializers(current) #:nodoc:
+  initializers = []
+  ordered_railties.reverse.flatten.each do |r| # ordered_railties是所有继承Engine的Railties
+    if r == self
+      initializers += current
+    else
+      initializers += r.initializers
+    end
+  end
+  initializers
+end
+
+</code></pre></div></div>
+
+<p>如果是Engine，还需要求 <code class="highlighter-rouge">r.initializers</code> 的所有initializers。求法如下:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.5.3/gems/railties-5.2.2/lib/rails/initializable.rb
+def initializers
+  @initializers ||= self.class.initializers_for(self)
+end
+
+def initializers_chain
+  initializers = Collection.new
+  ancestors.reverse_each do |klass|
+    next unless klass.respond_to?(:initializers)
+    initializers = initializers + klass.initializers
+  end
+  initializers
+end
+
+</code></pre></div></div>
+
+<p>如上可知，求每个Engine的initializers的时候都会去对应的<code class="highlighter-rouge">ancestors</code>中去查找对应的initializers，所以对于上面Sprocket在<code class="highlighter-rouge">Rails::Engine</code> 中的<code class="highlighter-rouge">append_assets_path</code>初始化，只有继承了Engine，都可以执行这个，把对应的路径加入到搜索路径上去，所以在加载插件的时候都会去到对应的路径中去搜索。其中还有其它类似的加载路径方式，都用的类似的处理方式。</p>
+
+	  ]]></description>
+	</item>
+
+	<item>
 	  <title>Ruby Middleware</title>
 	  <link>//ruby-rack</link>
 	  <author></author>

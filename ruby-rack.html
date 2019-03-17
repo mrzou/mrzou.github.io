@@ -416,6 +416,13 @@ end
 
     <!-- [[! next_post ]] -->
     
+        <a class="read-next-story " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-sprocket">
+            <section class="post">
+                <h2>Srpocket 如何加入gem静态文件路径</h2>
+                <p>平时候我们如果用Gem引进的方式去加载前端的插件，一般我们都是bundle了gem之后就直接去require对应的文件了。在引的时候一直有个疑问，Rails是如何加载这些插件进来的？它是怎么知道那个文件的位置的？其中用了什么手段去做的，一直比较好奇，现在有空总结了一下。 ### Sprocket对gem中静态文件的加载 在sprockets-rails gem中为Rails::Engine执行了一个initializer的方法: ``` initializer :append_assets_path, :group => :all do |app| app.config.assets.paths.unshift(*paths["vendor/assets"].existent_directories) app.config.assets.paths.unshift(*paths["lib/assets"].existent_directories)...</p>
+            </section>
+        </a>
+    
     <!-- [[! /next_post ]] -->
     <!-- [[! prev_post ]] -->
     

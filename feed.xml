@@ -8,6 +8,21 @@
     
       
       <item>
+        <title>Srpocket 如何加入gem静态文件路径</title>
+        
+          <description>&lt;p&gt;平时候我们如果用Gem引进的方式去加载前端的插件，一般我们都是bundle了gem之后就直接去require对应的文件了。在引的时候一直有个疑问，Rails是如何加载这些插件进来的？它是怎么知道那个文件的位置的？其中用了什么手段去做的，一直比较好奇，现在有空总结了一下。&lt;/p&gt;
+
+</description>
+        
+        <pubDate>Sat, 09 Mar 2019 10:18:00 +0000</pubDate>
+        <link>
+        http://localhost:4000/ruby-sprocket</link>
+        <guid isPermaLink="true">http://localhost:4000/ruby-sprocket</guid>
+      </item>
+      
+    
+      
+      <item>
         <title>Ruby Middleware</title>
         
           <description>&lt;p&gt;&lt;a href=&quot;https://rack.github.io/&quot;&gt;Rack官网&lt;/a&gt;对于Rack的介绍比较简单，只是介绍了Rack的作用和基本的使用。不过也可能因为不复杂，所以才用简单的几段话介绍了Rack。虽然我们不用了解middleware的调用原理也可以开发出能使用的middleware，但是总有点不知所以然的感觉，所以抽空总结了下Rack中middleware的调用原理。&lt;/p&gt;
