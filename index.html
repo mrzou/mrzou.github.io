@@ -130,6 +130,49 @@
     
     <article class="post">
         <header class="post-header">
+            <h2 class="post-title"><a href="/ruby-cancancan">Cancancan 的实现原理</a></h2>
+        </header>
+        <section class="post-excerpt">
+            <p>用了几年的cancancan，说起来有些尴尬。明明是也是用基本的代码写出来的，可是却不知道是怎么搭建起来的。用的时候去查看文档，每次都要使用在controller中能找到current_user方法，需要定义一个初始的Ability Model，然后定义各种各样的can方法，然后在每个需要权限的地方用can?去判断，更具有魔力的是controller方法中直接添加 load_and_authorize_resource 就可以判断权限了，不需要做其它的判断，各种各样的黑魔法。每每想起这些都觉得有点慌，使用的时候只要功能运行成功了就私自窃喜，满满的成就感，谁知道那只是大脑的一种欺骗。其实只是用对了，对于其中是怎么发生的，始终不知所以然。由于现在开发的系统对cancancan依赖的比较大，总结一些其中实现的原理。
+
+ <a class="read-more" href="/ruby-cancancan">&raquo;</a></p>
+        </section>
+        <footer class="post-meta">
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+
+            <!-- [[tags prefix=" on "]] -->
+            
+                on
+                
+                    
+                       <a href='/tag/ruby'>Ruby</a>,
+                    
+                
+                    
+                       <a href='/tag/rails'>Rails</a>,
+                    
+                
+                    
+                       <a href='/tag/cancancan'>Cancancan</a>
+                    
+                
+            
+            <time class="post-date" datetime="2019-03-30">30 Mar 2019</time>
+        </footer>
+    </article>
+    
+    <article class="post">
+        <header class="post-header">
             <h2 class="post-title"><a href="/ruby-sprocket">Srpocket 如何加入gem静态文件路径</a></h2>
         </header>
         <section class="post-excerpt">
@@ -285,45 +328,6 @@
                 
             
             <time class="post-date" datetime="2019-03-03">03 Mar 2019</time>
-        </footer>
-    </article>
-    
-    <article class="post">
-        <header class="post-header">
-            <h2 class="post-title"><a href="/ruby-tsort-usage">Ruby TSort 在Rails中的使用</a></h2>
-        </header>
-        <section class="post-excerpt">
-            <p>平时候接触到的只是业务逻辑层面的使用，很少触及到算法方面的应用，在看rails应用的启动过程时，偶然间发现的一个算法应用，然后查看了相关的资料，总结下TSort算法在Rails中的应用。
-
- <a class="read-more" href="/ruby-tsort-usage">&raquo;</a></p>
-        </section>
-        <footer class="post-meta">
-            
-                
-            
-                
-            
-                
-            
-                
-            
-                
-            
-
-            <!-- [[tags prefix=" on "]] -->
-            
-                on
-                
-                    
-                       <a href='/tag/ruby'>Ruby</a>,
-                    
-                
-                    
-                       <a href='/tag/rails'>Rails</a>
-                    
-                
-            
-            <time class="post-date" datetime="2019-02-14">14 Feb 2019</time>
         </footer>
     </article>
     

@@ -8,6 +8,21 @@
     
       
       <item>
+        <title>Cancancan 的实现原理</title>
+        
+          <description>&lt;p&gt;用了几年的&lt;a href=&quot;https://github.com/CanCanCommunity/cancancan&quot;&gt;cancancan&lt;/a&gt;，说起来有些尴尬。明明是也是用基本的代码写出来的，可是却不知道是怎么搭建起来的。用的时候去查看文档，每次都要使用在controller中能找到current_user方法，需要定义一个初始的Ability Model，然后定义各种各样的can方法，然后在每个需要权限的地方用can?去判断，更具有魔力的是controller方法中直接添加 &lt;code class=&quot;highlighter-rouge&quot;&gt;load_and_authorize_resource&lt;/code&gt; 就可以判断权限了，不需要做其它的判断，各种各样的黑魔法。每每想起这些都觉得有点慌，使用的时候只要功能运行成功了就私自窃喜，满满的成就感，谁知道那只是大脑的一种欺骗。其实只是用对了，对于其中是怎么发生的，始终不知所以然。由于现在开发的系统对cancancan依赖的比较大，总结一些其中实现的原理。&lt;/p&gt;
+
+</description>
+        
+        <pubDate>Sat, 30 Mar 2019 10:18:00 +0000</pubDate>
+        <link>
+        http://localhost:4000/ruby-cancancan</link>
+        <guid isPermaLink="true">http://localhost:4000/ruby-cancancan</guid>
+      </item>
+      
+    
+      
+      <item>
         <title>Srpocket 如何加入gem静态文件路径</title>
         
           <description>&lt;p&gt;平时候我们如果用Gem引进的方式去加载前端的插件，一般我们都是bundle了gem之后就直接去require对应的文件了。在引的时候一直有个疑问，Rails是如何加载这些插件进来的？它是怎么知道那个文件的位置的？其中用了什么手段去做的，一直比较好奇，现在有空总结了一下。&lt;/p&gt;

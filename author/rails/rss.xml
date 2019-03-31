@@ -12,6 +12,160 @@
    <atom:link href="rss" rel="self" type="application/rss+xml" />
    
 	<item>
+	  <title>Cancancan 的实现原理</title>
+	  <link>//ruby-cancancan</link>
+	  <author></author>
+	  <pubDate>2019-03-30T18:18:00+08:00</pubDate>
+	  <guid>//ruby-cancancan</guid>
+	  <description><![CDATA[
+	     <p>用了几年的<a href="https://github.com/CanCanCommunity/cancancan">cancancan</a>，说起来有些尴尬。明明是也是用基本的代码写出来的，可是却不知道是怎么搭建起来的。用的时候去查看文档，每次都要使用在controller中能找到current_user方法，需要定义一个初始的Ability Model，然后定义各种各样的can方法，然后在每个需要权限的地方用can?去判断，更具有魔力的是controller方法中直接添加 <code class="highlighter-rouge">load_and_authorize_resource</code> 就可以判断权限了，不需要做其它的判断，各种各样的黑魔法。每每想起这些都觉得有点慌，使用的时候只要功能运行成功了就私自窃喜，满满的成就感，谁知道那只是大脑的一种欺骗。其实只是用对了，对于其中是怎么发生的，始终不知所以然。由于现在开发的系统对cancancan依赖的比较大，总结一些其中实现的原理。</p>
+
+<h4 id="cancancan实现的原理">Cancancan实现的原理</h4>
+
+<p>简单的说，主要的逻辑线就是通过在<code class="highlighter-rouge">ability.rb</code>那个文件中声明can方法的权限，在gem中会把那个方法声明的操作和资源(就是model)做一个存储，变成一个虚拟模型(下面详细分析)。然后在controller的<code class="highlighter-rouge">authorize!</code>和view的<code class="highlighter-rouge">can?</code>方法的调用时，就用那个模型去做判断就可以了。</p>
+
+<p>首先为ActionController::Base类定义一些基本的方法，继承了这个类的controller都会定义好这些方法。其中比较常用的是<code class="highlighter-rouge">authorize!</code>, <code class="highlighter-rouge">load_and_authorize_resource</code>(这个方法在每个action执行之前执行<code class="highlighter-rouge">load_resource</code>和<code class="highlighter-rouge">authorize_resource</code>方法)，同时会声明:can?, :cannot?, :current_ability方法为helper方法，这样在view中就可以使用这三个方法了。下面是对controller做方法扩展。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>if defined? ActionController::Base
+  ActionController::Base.class_eval do
+    include CanCan::ControllerAdditions
+  end
+end
+</code></pre></div></div>
+
+<p>在Gem里面定义了current_ability方法，把current_user作为参数使用，所以需要在应用中已经定义了这个方法，要不然就会报没有这个方法定义。同时如果应用中表示当前的用户如果不是current_user，而是其它如<code class="highlighter-rouge">current_manager</code>之类的，就需要在应用的controller中定义一个current_ability的方法去覆盖这个方法。很多的权限判断都是基于这个方法去调用的。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def current_ability
+  @current_ability ||= ::Ability.new(current_manager)
+end
+</code></pre></div></div>
+
+<p>那你的应用是通过什么方式和Gem里面的那些方法发生关联的呢？其实主要的关联是上面方法中new出来的那个Ability类，这个类是一个基本的model，执行 <code class="highlighter-rouge">rails g cancan:ability</code> 的时候会自动为我们创建一个初始化的model，initialize方法中去把定义的权限转化为虚拟的模型，然后在后面需要使用时去判断使用。当在initialize方法中定义一个权限 <code class="highlighter-rouge">can :edit, Post</code>，这时会调用到 <code class="highlighter-rouge">include CanCan::Ability</code> 中的can方法，这个方法的定义是通过在model Ability中include添加进去的。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/cancancan-2.0.0/lib/cancan/ability.rb
+def can(action = nil, subject = nil, conditions = nil, &amp;block)
+  add_rule(Rule.new(true, action, subject, conditions, block))
+end
+
+def add_rule(rule)
+  rules &lt;&lt; rule
+  add_rule_to_index(rule, rules.size - 1)
+end
+</code></pre></div></div>
+
+<p>can方法中初始化的Rule实例表示的是一个can方法调用的一个规则，所有的规则都会添加到@rules实例变量中去。其中Rule类中定义的方法<code class="highlighter-rouge">matches_conditions</code>是后面需要用来判断找到的Rule是否符合权限的关键方法。而<code class="highlighter-rouge">add_rule_to_index</code>方法是用来存储subjects(can方法中定义的资源，即model)在Rules中定义的位置数据的格式为{model: [1,2,3]}这种。这种数据结构是为了比较容易通过model去找rules中对应的rule。在Ability的initizlie中定义的can方法到这里就执行完了。其实这个过程就是通过can方法定义了一组的rules，然后把model作为key，rule在rules中的位置作为values的存储结构模型，在需要判断权限的地方判断一下就好了，仅此而已。。。。。</p>
+
+<p>接下来就到了在view中调用can?和在controller中调用authorize!的权限判断了，其实controller中authorize!的判断也是通过调用Gem中定义好的can?方法去执行判断的，判断到为false时就执行<code class="highlighter-rouge">raise AccessDenied</code> 所以下面只分析can?方法了。</p>
+
+<p>调用can?方法时是通过调用 <code class="highlighter-rouge">current_ability</code>(即CanCan::Ability)中的can?方法去做判断的。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/cancancan-2.0.0/lib/cancan/ability.rb
+def can?(action, subject, *extra_args)
+  match = extract_subjects(subject).lazy.map do |a_subject|
+    relevant_rules_for_match(action, a_subject).detect do |rule|
+      rule.matches_conditions?(action, a_subject, extra_args)
+    end
+  end.reject(&amp;:nil?).first
+  match ? match.base_behavior : false
+end
+
+def relevant_rules(action, subject)
+  return [] unless @rules
+  relevant = possible_relevant_rules(subject).select do |rule|
+    rule.expanded_actions = expand_actions(rule.actions)
+    rule.relevant? action, subject
+  end
+  relevant.reverse!.uniq!
+  optimize_order! relevant
+  relevant
+end
+
+def possible_relevant_rules(subject)
+  if subject.is_a?(Hash)
+    rules
+  else
+    positions = @rules_index.values_at(subject, *alternative_subjects(subject))
+    positions.flatten!.sort!
+    positions.map { |i| @rules[i] }
+  end
+end
+
+</code></pre></div></div>
+
+<p>上面是主要的调用栈，relevant_rules方法是为了判断找出的rule是否符合在资源上定义的action。调用栈中的<code class="highlighter-rouge">possible_relevant_rules</code>是为了找到这个subject相关的rules，因为subject不仅仅是本身，也有可能是<a href="https://api.rubyonrails.org/classes/ActiveRecord/Inheritance.html">STI</a>，所以通过<code class="highlighter-rouge">subject.ancestors</code>找出所有相关的祖父类。然后返回相应的rules。通过 <code class="highlighter-rouge">rule.matches_conditions?(action, a_subject, extra_args)</code>去判断是否满足定义的这种情况，默认的Ability的model中can方法没有condition或者块时，一般会愉快的返回true的，但是如果有condition和block时就会转去执行相应的判断了。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def matches_conditions?(action, subject, extra_args)
+  if @match_all # 这种情况是can直接用block作为参数，没有action和subject的情况
+    call_block_with_all(action, subject, extra_args)
+  elsif @block &amp;&amp; !subject_class?(subject)
+    @block.call(subject, *extra_args)
+  elsif @conditions.is_a?(Hash) &amp;&amp; subject.class == Hash
+    nested_subject_matches_conditions?(subject)
+  elsif @conditions.is_a?(Hash) &amp;&amp; !subject_class?(subject)
+    matches_conditions_hash?(subject)
+  else
+    # Don't stop at "cannot" definitions when there are conditions.
+    conditions_empty? ? true : @base_behavior
+  end
+end
+</code></pre></div></div>
+
+<p>上面的判断 <code class="highlighter-rouge">@block &amp;&amp; !subject_class?(subject)</code>这里可能要注意一下，这里和下面的误用有关联。为什么需要判断subject是否是class呢？这个和要调用的块有关，由于块中需要传入对应的实例来判断是否满足情况。如果subject是类，则不会进行该判断。所以如果定义权限时，can方法接了block，这里会有两种方式做判断，方式一时<code class="highlighter-rouge">can?(:action, Model)</code>，方式二是 <code class="highlighter-rouge">can?(action, model)</code> 一个model是类，一个是实例。如果是类，则不会执行后面的块，只有资源是实例时才会执行block的判断。</p>
+
+<h4 id="controller中的-load_and_authorize_resource-方法做了什么">Controller中的 <code class="highlighter-rouge">load_and_authorize_resource</code> 方法做了什么</h4>
+
+<p>调用这个方法时，其实是在添加了一个<code class="highlighter-rouge">before_action</code>的声明。在这里就相当于声明了</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>before_action :load_and_authorize_resource
+</code></pre></div></div>
+
+<p>而load_and_authorize_resource方法分别调用<code class="highlighter-rouge">load_resource</code>和<code class="highlighter-rouge">authorize_resource</code>方法。和在controller中分别声明那两个方法意思一样。</p>
+
+<p>load_resource方法是通过controller的名字找到对应的model名，把model名设置为实例变量，这个实例变量供后面<code class="highlighter-rouge">authorize_resource</code>调用时使用。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/cancancan-2.0.0/lib/cancan/controller_resource.rb
+def load_resource
+  return if skip?(:load)
+  if load_instance? # 根据情况决定是否把资源load出来
+    self.resource_instance ||= load_resource_instance
+  elsif load_collection?
+    self.collection_instance ||= load_collection
+  end
+end
+
+def load_instance?
+  # parent的意思是由于有些资源是嵌套的，比如/users/:user_id/products/3这种形式，parent就是user了，则需要用
+  # load_resource :user
+  # load_resource :product, through: :user
+  parent? ||
+  # 是否是member_action，则根据是否是new，create，或者params中有id的那种情况(update, destroy)等其它情况
+  member_action?
+end
+
+def load_collection # accessible_by方法会根据can方法中设置的condition用where自动作为condition去查询
+  resource_base.accessible_by(current_ability, authorization_action)
+end
+</code></pre></div></div>
+
+<p>这样上面就是对load_resource的理解了，其实简单点说就是先帮你把各种资源假设查找出来，然后在<code class="highlighter-rouge">authorize_resource</code>的时候用这个去判断权限。不过有时候我们用权限的方式不太对，但是没有检查到。比如说设置了如下的权限:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>can :edit, User do |resource|
+  resource.normal?
+end
+</code></pre></div></div>
+
+<p>然后在view里用的却用<code class="highlighter-rouge">can?(:edit, User)</code>这种验证方法，这时候其实块里面的权限没有检查到。
+还有一种情况就是controller里加载的resource和model没有对应，然后直接用 <code class="highlighter-rouge">load_and_authorize_resource</code>方法去验证权限了，这样也是不对的。这时候就需要添加一些name和class的参数去把这些和model名字对应起来了。</p>
+
+<h4 id="总结">总结</h4>
+
+<p>总的来说，权限其实是实例化了一个Ability，然后在其中保存rules权限匹配规则。在需要判断的时候用can调用，利用参数action和其中的资源去匹配，看其中有没有对应的规则可以匹配去做权限验证。看文档能解决使用问题，但是要精确的去使用还是要看下里面的实现。</p>
+
+
+	  ]]></description>
+	</item>
+
+	<item>
 	  <title>Srpocket 如何加入gem静态文件路径</title>
 	  <link>//ruby-sprocket</link>
 	  <author></author>
