@@ -130,6 +130,45 @@
     
     <article class="post">
         <header class="post-header">
+            <h2 class="post-title"><a href="/ruby-warden">Ruby Warden</a></h2>
+        </header>
+        <section class="post-excerpt">
+            <p>目前项目遇到个需求，在一期用devise登陆的后台，在做二期的时候需要可以通过拿到一期的cookie，带到另外的子系统中去做api(用的是grape)的用户鉴权验证。这时候需要做的是保证在子系统中把cookie正确解析出来，而且需要验证解析出来的cookie的信息是否正确的，这时就需要了解devise依赖的warden是怎么设置用户鉴权的cookie值。周末有时间了解了一下devise和warden实现的细节问题，记录一下这个过程。
+
+ <a class="read-more" href="/ruby-warden">&raquo;</a></p>
+        </section>
+        <footer class="post-meta">
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+
+            <!-- [[tags prefix=" on "]] -->
+            
+                on
+                
+                    
+                       <a href='/tag/ruby'>Ruby</a>,
+                    
+                
+                    
+                       <a href='/tag/warden'>Warden</a>
+                    
+                
+            
+            <time class="post-date" datetime="2019-04-13">13 Apr 2019</time>
+        </footer>
+    </article>
+    
+    <article class="post">
+        <header class="post-header">
             <h2 class="post-title"><a href="/ruby-cancancan">Cancancan 的实现原理</a></h2>
         </header>
         <section class="post-excerpt">
@@ -285,49 +324,6 @@
                 
             
             <time class="post-date" datetime="2019-03-09">09 Mar 2019</time>
-        </footer>
-    </article>
-    
-    <article class="post">
-        <header class="post-header">
-            <h2 class="post-title"><a href="/ruby-sidekiq">Ruby Sidekiq的使用</a></h2>
-        </header>
-        <section class="post-excerpt">
-            <p>Sidekiq 作为后台的一种异步定时任务队列处理服务，是通过什么方式去处理队列任务的，和Redis是怎么配合的？涉及到的一些技术原理一直比较模糊，有空总结了一下查看Sidekiq源码学到的东西。
-
- <a class="read-more" href="/ruby-sidekiq">&raquo;</a></p>
-        </section>
-        <footer class="post-meta">
-            
-                
-            
-                
-            
-                
-            
-                
-            
-                
-            
-
-            <!-- [[tags prefix=" on "]] -->
-            
-                on
-                
-                    
-                       <a href='/tag/ruby'>Ruby</a>,
-                    
-                
-                    
-                       <a href='/tag/rails'>Rails</a>,
-                    
-                
-                    
-                       <a href='/tag/sidekiq'>Sidekiq</a>
-                    
-                
-            
-            <time class="post-date" datetime="2019-03-03">03 Mar 2019</time>
         </footer>
     </article>
     

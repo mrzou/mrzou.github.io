@@ -302,6 +302,13 @@ end
 
     <!-- [[! next_post ]] -->
     
+        <a class="read-next-story " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-warden">
+            <section class="post">
+                <h2>Ruby Warden</h2>
+                <p>目前项目遇到个需求，在一期用devise登陆的后台，在做二期的时候需要可以通过拿到一期的cookie，带到另外的子系统中去做api(用的是grape)的用户鉴权验证。这时候需要做的是保证在子系统中把cookie正确解析出来，而且需要验证解析出来的cookie的信息是否正确的，这时就需要了解devise依赖的warden是怎么设置用户鉴权的cookie值。周末有时间了解了一下devise和warden实现的细节问题，记录一下这个过程。 ### 基本知识 每个用户访问网站时一般都会有唯一的cookie，cookie可能有多个值，其中可以用一个值来存储后端需要记录当前用户的一些信息(在后端表示的是session，当前情况是session保存到cookie中，当然也可以保存到redis等缓存服务器中)。这个值是后端生成的，然后作为response的header，放到Set-Cookie字段中返回给浏览器，浏览器会把这个值保存到cookie中。然后下次浏览器请求服务器的时候，服务器会解析那串字符串，然后把信息解析出来放到session对象中，这时session中就有之前设置的信息了。 同理，一般我们做用户登陆授权验证，如果不用devise，我们一般是直接把用户的id记录在session里面，记录用户的一次会话是否登录，避免后续的请求也需要输入密码验证用户的身份。利用的原理类似上面所述。其实warden也是做了类似的处理，也是把一些验证数据放到session中去了，只不过devise把id和验证用户登陆时的加密密码前30位组成的数组作为value了。然后在浏览器访问服务器时，把那串cookie解析出来。解析出来的数据就是类似[id, authenticatable_salt]这种形式。 ### 实现 Warden是一个Rack Middleware，middleware做初始化的时候会把一些config的一些东西作为块的参数，供外部的接口可调用。 ``` # ~/.rvm/gems/ruby-2.4.3/gems/devise-4.6.1/lib/devise/rails.rb config.app_middleware.use Warden::Manager...</p>
+            </section>
+        </a>
+    
     <!-- [[! /next_post ]] -->
     <!-- [[! prev_post ]] -->
     

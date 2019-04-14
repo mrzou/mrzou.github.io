@@ -12,6 +12,147 @@
    <atom:link href="rss" rel="self" type="application/rss+xml" />
    
 	<item>
+	  <title>Ruby Warden</title>
+	  <link>//ruby-warden</link>
+	  <author></author>
+	  <pubDate>2019-04-13T18:18:00+08:00</pubDate>
+	  <guid>//ruby-warden</guid>
+	  <description><![CDATA[
+	     <p>目前项目遇到个需求，在一期用devise登陆的后台，在做二期的时候需要可以通过拿到一期的cookie，带到另外的子系统中去做api(用的是grape)的用户鉴权验证。这时候需要做的是保证在子系统中把cookie正确解析出来，而且需要验证解析出来的cookie的信息是否正确的，这时就需要了解devise依赖的warden是怎么设置用户鉴权的cookie值。周末有时间了解了一下devise和warden实现的细节问题，记录一下这个过程。</p>
+
+<h3 id="基本知识">基本知识</h3>
+
+<p>每个用户访问网站时一般都会有唯一的cookie，cookie可能有多个值，其中可以用一个值来存储后端需要记录当前用户的一些信息(在后端表示的是session，当前情况是session保存到cookie中，当然也可以保存到redis等缓存服务器中)。这个值是后端生成的，然后作为response的header，放到Set-Cookie字段中返回给浏览器，浏览器会把这个值保存到cookie中。然后下次浏览器请求服务器的时候，服务器会解析那串字符串，然后把信息解析出来放到session对象中，这时session中就有之前设置的信息了。</p>
+
+<p>同理，一般我们做用户登陆授权验证，如果不用devise，我们一般是直接把用户的id记录在session里面，记录用户的一次会话是否登录，避免后续的请求也需要输入密码验证用户的身份。利用的原理类似上面所述。其实warden也是做了类似的处理，也是把一些验证数据放到session中去了，只不过devise把id和验证用户登陆时的加密密码前30位组成的数组作为value了。然后在浏览器访问服务器时，把那串cookie解析出来。解析出来的数据就是类似[id, authenticatable_salt]这种形式。</p>
+
+<h3 id="实现">实现</h3>
+
+<p>Warden是一个Rack Middleware，middleware做初始化的时候会把一些config的一些东西作为块的参数，供外部的接口可调用。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/devise-4.6.1/lib/devise/rails.rb
+config.app_middleware.use Warden::Manager do |config|
+  Devise.warden_config = config
+end
+
+# ~/.rvm/gems/ruby-2.4.3/gems/warden-1.2.8/lib/warden/config.rb
+
+def initialize(app, options={})
+  default_strategies = options.delete(:default_strategies)
+
+  @app, @config = app, Warden::Config.new(options)
+  @config.default_strategies(*default_strategies) if default_strategies
+  yield @config if block_given? # @config 注入到上面的块中作为参数，供devise调用
+end
+</code></pre></div></div>
+
+<p>其中config中定义<code class="highlighter-rouge">serialize_into_session</code>方法可以把需要用来标识用户身份的信息系列化到cookie中，这是向外提供的一个接口，供外面去调用的。其中做的事是在<code class="highlighter-rouge">Warden::SessionSerializer</code>中定义一个<code class="highlighter-rouge">#{scope}_serialize</code>的实例方法。在后面需要调用这个实例方法去设置session的时候再调用，其中的方法体是我们在外部定义的块。在devise中定义如下:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/devise-4.6.1/lib/devise/rails.rb
+warden_config.serialize_into_session(mapping.name) do |record|
+  mapping.to.serialize_into_session(record)
+end
+
+# ~/.rvm/gems/ruby-2.4.3/gems/devise-4.6.1/lib/devise/models/authenticatable.rb
+def serialize_into_session(record)
+  [record.to_key, record.authenticatable_salt]
+end
+</code></pre></div></div>
+
+<p>config中另外一个类似的方法是 <code class="highlighter-rouge">serialize_from_session</code> 使用和作用和上面类似。只不过这个是从session中读取出用户信息的。</p>
+
+<p>知道了初始化时上面两个方法的作用，那warden是如何具体验证用户信息和保存用户信息的呢？其中就用到了叫strategies的东西，那个东西是外部提供给warden，然后warden在需要的时候会用那些strategies去验证用户是否有效，如果有效就调用<code class="highlighter-rouge">success!(resource)</code>这个方法。如用密码登陆用户时，devise是这样做的：</p>
+
+<p>在devise的<code class="highlighter-rouge">Devise::SessionsController#create</code>中调用 <code class="highlighter-rouge">warden.authenticate!(auth_options)</code>去验证用户的有效性。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/warden-1.2.8/lib/warden/proxy.rb
+def authenticate!(*args)
+  user, opts = _perform_authentication(*args)
+  throw(:warden, opts) unless user
+  user
+end
+
+def _perform_authentication(*args)
+  ...
+  return user, opts if user = user(opts.merge(:scope =&gt; scope)) # 这一步为了检验session中是否有用户信息了，有了就直接返回用户信息
+  _run_strategies_for(scope, args)
+
+  if winning_strategy &amp;&amp; winning_strategy.successful?
+    opts[:store] = opts.fetch(:store, winning_strategy.store?)
+    set_user(winning_strategy.user, opts.merge!(:event =&gt; :authentication))
+  end
+
+  [@users[scope], opts]
+end
+
+def _run_strategies_for(scope, args) #:nodoc:
+  ...
+  (strategies || args).each do |name|
+    strategy = _fetch_strategy(name, scope)
+    next unless strategy &amp;&amp; !strategy.performed? &amp;&amp; strategy.valid?
+
+    strategy._run!
+    self.winning_strategy = @winning_strategies[scope] = strategy
+    break if strategy.halted?
+  end
+end
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">_run_strategies_for</code>方法中的<code class="highlighter-rouge">valid?</code>和<code class="highlighter-rouge">strategy._run!</code>方法执行会执行到我们定义的strategy中的valid?和authenticate!方法，在devise中默认会定义好两个strategies，一个是database_authenticatable，一个是rememberable，第一个strategie是为了用密码去验证用户登录是否有效了，第二个是用来记住用户密码时候生成的一个token，保存在浏览器，过期时间比较长，这样在登录授权的那个cookie过期后，还可以用那个token去验证用户的身份。</p>
+
+<p>在 <code class="highlighter-rouge">_perform_authentication</code> 方法中，如果strategy执行成功了，则会执行<code class="highlighter-rouge">set_user</code>方法</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/warden-1.2.8/lib/warden/proxy.rb
+def set_user(user, opts = {})
+  ...
+
+  if opts[:store] != false &amp;&amp; opts[:event] != :fetch
+    options = env[ENV_SESSION_OPTIONS]
+    if options
+      if options.frozen?
+        env[ENV_SESSION_OPTIONS] = options.merge(:renew =&gt; true).freeze
+      else
+        options[:renew] = true
+      end
+    end
+    session_serializer.store(user, scope)
+  end
+  ...
+
+  @users[scope]
+end
+
+# ~/.rvm/gems/ruby-2.4.3/gems/warden-1.2.8/lib/warden/session_serializer.rb
+def store(user, scope)
+  return unless user
+  method_name = "#{scope}_serialize"
+  specialized = respond_to?(method_name)
+  session[key_for(scope)] = specialized ? send(method_name, user) : serialize(user)
+end
+</code></pre></div></div>
+
+<p>上面的<code class="highlighter-rouge">send(method_name, user)</code>方法就是调用到了上面说的<code class="highlighter-rouge">Warden::SessionSerializer</code>中定义的一个<code class="highlighter-rouge">#{scope}_serialize</code>的实例方法，到这里就是把那个系列化的信息存到session中去的。</p>
+
+<p>存储后每次要验证cookie中用户身份的有效性，则通过调用fetch方法去获取cookie中存储的用户信息。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def fetch(scope)
+  key = session[key_for(scope)]
+  return nil unless key
+
+  method_name = "#{scope}_deserialize"
+  user = respond_to?(method_name) ? send(method_name, key) : deserialize(key)
+  delete(scope) unless user
+  user
+end
+</code></pre></div></div>
+
+<p>到这里基本的逻辑就比较清楚了，Warden提供一个接口，让用户去自定义验证的时候用什么策略(authenticate!方法)，保存到session中的系列值是什么，读取cookie中的系列值应该怎么去验证是否有效。然后在Warden内部负责把那些东西设置好，session设置的key，还有需要验证的步骤那些。</p>
+
+
+	  ]]></description>
+	</item>
+
+	<item>
 	  <title>Cancancan 的实现原理</title>
 	  <link>//ruby-cancancan</link>
 	  <author></author>
@@ -161,69 +302,6 @@ end
 
 <p>总的来说，权限其实是实例化了一个Ability，然后在其中保存rules权限匹配规则。在需要判断的时候用can调用，利用参数action和其中的资源去匹配，看其中有没有对应的规则可以匹配去做权限验证。看文档能解决使用问题，但是要精确的去使用还是要看下里面的实现。</p>
 
-
-	  ]]></description>
-	</item>
-
-	<item>
-	  <title>Srpocket 如何加入gem静态文件路径</title>
-	  <link>//ruby-sprocket</link>
-	  <author></author>
-	  <pubDate>2019-03-09T18:18:00+08:00</pubDate>
-	  <guid>//ruby-sprocket</guid>
-	  <description><![CDATA[
-	     <p>平时候我们如果用Gem引进的方式去加载前端的插件，一般我们都是bundle了gem之后就直接去require对应的文件了。在引的时候一直有个疑问，Rails是如何加载这些插件进来的？它是怎么知道那个文件的位置的？其中用了什么手段去做的，一直比较好奇，现在有空总结了一下。</p>
-
-<h3 id="sprocket对gem中静态文件的加载">Sprocket对gem中静态文件的加载</h3>
-
-<p>在sprockets-rails gem中为Rails::Engine执行了一个initializer的方法:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  initializer :append_assets_path, :group =&gt; :all do |app|
-    app.config.assets.paths.unshift(*paths["vendor/assets"].existent_directories)
-    app.config.assets.paths.unshift(*paths["lib/assets"].existent_directories)
-    app.config.assets.paths.unshift(*paths["app/assets"].existent_directories)
-  end
-</code></pre></div></div>
-
-<p>这个方法是在应用程序启动时会去自动加载执行的一个方法，这个方法的目的就是为每个Engine自动加入定义好的路径，然后在Sprocket require到对应的插件时可以去到对应的搜索路径下去查找文件加载进来(一般是application.js那种manifest)。那为什么可以做到每个插件继承了Engine就可以自动加载这些路径呢？这个可能要涉及到Railties对于Initializable模块的处理了。</p>
-
-<h3 id="initializable">Initializable</h3>
-
-<p>每个include了这个类的类都可以现在类的加载阶段把一些需要初始化的东西放到类变量 <code class="highlighter-rouge">@initializers</code> 中，然后在应用程序的environment.rb中执行 <code class="highlighter-rouge">Rails.application.initialize!</code> 的时候再一起去初始化执行这些<code class="highlighter-rouge">initializer</code> 中的块。但是对Railtie的 <code class="highlighter-rouge">initializers</code> 的求法如下:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def railties_initializers(current) #:nodoc:
-  initializers = []
-  ordered_railties.reverse.flatten.each do |r| # ordered_railties是所有继承Engine的Railties
-    if r == self
-      initializers += current
-    else
-      initializers += r.initializers
-    end
-  end
-  initializers
-end
-
-</code></pre></div></div>
-
-<p>如果是Engine，还需要求 <code class="highlighter-rouge">r.initializers</code> 的所有initializers。求法如下:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.5.3/gems/railties-5.2.2/lib/rails/initializable.rb
-def initializers
-  @initializers ||= self.class.initializers_for(self)
-end
-
-def initializers_chain
-  initializers = Collection.new
-  ancestors.reverse_each do |klass|
-    next unless klass.respond_to?(:initializers)
-    initializers = initializers + klass.initializers
-  end
-  initializers
-end
-
-</code></pre></div></div>
-
-<p>如上可知，求每个Engine的initializers的时候都会去对应的<code class="highlighter-rouge">ancestors</code>中去查找对应的initializers，所以对于上面Sprocket在<code class="highlighter-rouge">Rails::Engine</code> 中的<code class="highlighter-rouge">append_assets_path</code>初始化，只有继承了Engine，都可以执行这个，把对应的路径加入到搜索路径上去，所以在加载插件的时候都会去到对应的路径中去搜索。其中还有其它类似的加载路径方式，都用的类似的处理方式。</p>
 
 	  ]]></description>
 	</item>
@@ -885,6 +963,69 @@ end
   <li><a href="https://thorstenball.com/blog/2014/11/20/unicorn-unix-magic-tricks/">Unicorn Unix Magic Tricks text</a></li>
   <li><a href="https://speakerdeck.com/mrnugget/unicorn-unix-magic-tricks?slide=25">Unicorn Unix Magic Tricks ppt</a></li>
 </ul>
+
+	  ]]></description>
+	</item>
+
+	<item>
+	  <title>Srpocket 如何加入gem静态文件路径</title>
+	  <link>//ruby-sprocket</link>
+	  <author></author>
+	  <pubDate>2019-03-09T18:18:00+08:00</pubDate>
+	  <guid>//ruby-sprocket</guid>
+	  <description><![CDATA[
+	     <p>平时候我们如果用Gem引进的方式去加载前端的插件，一般我们都是bundle了gem之后就直接去require对应的文件了。在引的时候一直有个疑问，Rails是如何加载这些插件进来的？它是怎么知道那个文件的位置的？其中用了什么手段去做的，一直比较好奇，现在有空总结了一下。</p>
+
+<h3 id="sprocket对gem中静态文件的加载">Sprocket对gem中静态文件的加载</h3>
+
+<p>在sprockets-rails gem中为Rails::Engine执行了一个initializer的方法:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  initializer :append_assets_path, :group =&gt; :all do |app|
+    app.config.assets.paths.unshift(*paths["vendor/assets"].existent_directories)
+    app.config.assets.paths.unshift(*paths["lib/assets"].existent_directories)
+    app.config.assets.paths.unshift(*paths["app/assets"].existent_directories)
+  end
+</code></pre></div></div>
+
+<p>这个方法是在应用程序启动时会去自动加载执行的一个方法，这个方法的目的就是为每个Engine自动加入定义好的路径，然后在Sprocket require到对应的插件时可以去到对应的搜索路径下去查找文件加载进来(一般是application.js那种manifest)。那为什么可以做到每个插件继承了Engine就可以自动加载这些路径呢？这个可能要涉及到Railties对于Initializable模块的处理了。</p>
+
+<h3 id="initializable">Initializable</h3>
+
+<p>每个include了这个类的类都可以现在类的加载阶段把一些需要初始化的东西放到类变量 <code class="highlighter-rouge">@initializers</code> 中，然后在应用程序的environment.rb中执行 <code class="highlighter-rouge">Rails.application.initialize!</code> 的时候再一起去初始化执行这些<code class="highlighter-rouge">initializer</code> 中的块。但是对Railtie的 <code class="highlighter-rouge">initializers</code> 的求法如下:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def railties_initializers(current) #:nodoc:
+  initializers = []
+  ordered_railties.reverse.flatten.each do |r| # ordered_railties是所有继承Engine的Railties
+    if r == self
+      initializers += current
+    else
+      initializers += r.initializers
+    end
+  end
+  initializers
+end
+
+</code></pre></div></div>
+
+<p>如果是Engine，还需要求 <code class="highlighter-rouge">r.initializers</code> 的所有initializers。求法如下:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.5.3/gems/railties-5.2.2/lib/rails/initializable.rb
+def initializers
+  @initializers ||= self.class.initializers_for(self)
+end
+
+def initializers_chain
+  initializers = Collection.new
+  ancestors.reverse_each do |klass|
+    next unless klass.respond_to?(:initializers)
+    initializers = initializers + klass.initializers
+  end
+  initializers
+end
+
+</code></pre></div></div>
+
+<p>如上可知，求每个Engine的initializers的时候都会去对应的<code class="highlighter-rouge">ancestors</code>中去查找对应的initializers，所以对于上面Sprocket在<code class="highlighter-rouge">Rails::Engine</code> 中的<code class="highlighter-rouge">append_assets_path</code>初始化，只有继承了Engine，都可以执行这个，把对应的路径加入到搜索路径上去，所以在加载插件的时候都会去到对应的路径中去搜索。其中还有其它类似的加载路径方式，都用的类似的处理方式。</p>
 
 	  ]]></description>
 	</item>

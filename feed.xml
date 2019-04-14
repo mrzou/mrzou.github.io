@@ -8,6 +8,21 @@
     
       
       <item>
+        <title>Ruby Warden</title>
+        
+          <description>&lt;p&gt;目前项目遇到个需求，在一期用devise登陆的后台，在做二期的时候需要可以通过拿到一期的cookie，带到另外的子系统中去做api(用的是grape)的用户鉴权验证。这时候需要做的是保证在子系统中把cookie正确解析出来，而且需要验证解析出来的cookie的信息是否正确的，这时就需要了解devise依赖的warden是怎么设置用户鉴权的cookie值。周末有时间了解了一下devise和warden实现的细节问题，记录一下这个过程。&lt;/p&gt;
+
+</description>
+        
+        <pubDate>Sat, 13 Apr 2019 10:18:00 +0000</pubDate>
+        <link>
+        http://localhost:4000/ruby-warden</link>
+        <guid isPermaLink="true">http://localhost:4000/ruby-warden</guid>
+      </item>
+      
+    
+      
+      <item>
         <title>Cancancan 的实现原理</title>
         
           <description>&lt;p&gt;用了几年的&lt;a href=&quot;https://github.com/CanCanCommunity/cancancan&quot;&gt;cancancan&lt;/a&gt;，说起来有些尴尬。明明是也是用基本的代码写出来的，可是却不知道是怎么搭建起来的。用的时候去查看文档，每次都要使用在controller中能找到current_user方法，需要定义一个初始的Ability Model，然后定义各种各样的can方法，然后在每个需要权限的地方用can?去判断，更具有魔力的是controller方法中直接添加 &lt;code class=&quot;highlighter-rouge&quot;&gt;load_and_authorize_resource&lt;/code&gt; 就可以判断权限了，不需要做其它的判断，各种各样的黑魔法。每每想起这些都觉得有点慌，使用的时候只要功能运行成功了就私自窃喜，满满的成就感，谁知道那只是大脑的一种欺骗。其实只是用对了，对于其中是怎么发生的，始终不知所以然。由于现在开发的系统对cancancan依赖的比较大，总结一些其中实现的原理。&lt;/p&gt;
