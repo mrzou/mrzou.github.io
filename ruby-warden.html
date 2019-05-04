@@ -144,17 +144,15 @@
 
         <section class="post-content">
 
-            <p>目前项目遇到个需求，在一期用devise登陆的后台，在做二期的时候需要可以通过拿到一期的cookie，带到另外的子系统中去做api(用的是grape)的用户鉴权验证。这时候需要做的是保证在子系统中把cookie正确解析出来，而且需要验证解析出来的cookie的信息是否正确的，这时就需要了解devise依赖的warden是怎么设置用户鉴权的cookie值。周末有时间了解了一下devise和warden实现的细节问题，记录一下这个过程。</p>
+            <p>目前项目遇到个需求，一期用devise做登陆的后台，在做二期的时候需要可以通过一期的cookie，带到用api(grape)做鉴权的子系统中去。这时候需要做的是保证在子系统中能把cookie正确解析出来，而且需要验证解析出来的cookie的信息是否是正确的，这时就需要了解devise依赖的warden是怎么设置用户鉴权cookie值的。周末有时间了解了一下devise和warden实现的细节问题，记录一下这个过程。</p>
 
 <h3 id="基本知识">基本知识</h3>
 
-<p>每个用户访问网站时一般都会有唯一的cookie，cookie可能有多个值，其中可以用一个值来存储后端需要记录当前用户的一些信息(在后端表示的是session，当前情况是session保存到cookie中，当然也可以保存到redis等缓存服务器中)。这个值是后端生成的，然后作为response的header，放到Set-Cookie字段中返回给浏览器，浏览器会把这个值保存到cookie中。然后下次浏览器请求服务器的时候，服务器会解析那串字符串，然后把信息解析出来放到session对象中，这时session中就有之前设置的信息了。</p>
+<p>每个用户访问网站时一般都会有独立的cookie值记录一些信息，cookie可能有多个键值对，可以用一个值来存储后端需要记录当前用户的一些信息(在后端表示的是session，当前情况是session保存到cookie中，当然也可以保存到redis等缓存服务器中)。这个值是后端生成的，然后作为response的header，放到Set-Cookie字段中返回给浏览器，浏览器会把这个值保存到cookie中。然后下次浏览器请求服务器的时候，服务器会解析那串字符串，然后把信息解析出来放到session对象中，这时session中就有之前设置的信息了。</p>
 
-<p>同理，一般我们做用户登陆授权验证，如果不用devise，我们一般是直接把用户的id记录在session里面，记录用户的一次会话是否登录，避免后续的请求也需要输入密码验证用户的身份。利用的原理类似上面所述。其实warden也是做了类似的处理，也是把一些验证数据放到session中去了，只不过devise把id和验证用户登陆时的加密密码前30位组成的数组作为value了。然后在浏览器访问服务器时，把那串cookie解析出来。解析出来的数据就是类似[id, authenticatable_salt]这种形式。</p>
+<p>同理，一般我们做用户登陆授权验证，如果不用devise，我们一般是直接把用户的id记录在session里面，记录用户的一次会话是否登录，避免后续的请求也需要输入密码验证用户的身份。利用的原理类似上面所述。其实warden也是做了类似的处理，也是把一些验证数据放到session中去，只不过devise把用户的id和加密密码前30位组成的数组作为value值。然后在浏览器访问服务器时，把那串cookie解析出来。解析出来的数据就是类似[id, authenticatable_salt]这种形式，然后对比是否匹配就可以了。</p>
 
 <h3 id="实现">实现</h3>
-
-<p>Warden是一个Rack Middleware，middleware做初始化的时候会把一些config的一些东西作为块的参数，供外部的接口可调用。</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/devise-4.6.1/lib/devise/rails.rb
 config.app_middleware.use Warden::Manager do |config|
@@ -172,11 +170,25 @@ def initialize(app, options={})
 end
 </code></pre></div></div>
 
-<p>其中config中定义<code class="highlighter-rouge">serialize_into_session</code>方法可以把需要用来标识用户身份的信息系列化到cookie中，这是向外提供的一个接口，供外面去调用的。其中做的事是在<code class="highlighter-rouge">Warden::SessionSerializer</code>中定义一个<code class="highlighter-rouge">#{scope}_serialize</code>的实例方法。在后面需要调用这个实例方法去设置session的时候再调用，其中的方法体是我们在外部定义的块。在devise中定义如下:</p>
+<p>Warden是一个Rack Middleware，middleware初始化的时候会把一些config的一些东西作为块的参数，供外部的接口调用。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># /Users/Cain/.rvm/gems/ruby-2.4.3/gems/warden-1.2.8/lib/warden/config.rb
+def serialize_into_session(*args, &amp;block)
+  Warden::Manager.serialize_into_session(*args, &amp;block)
+end
+
+# ~/.rvm/gems/ruby-2.4.3/gems/warden-1.2.8/lib/warden/manager.rb
+def serialize_into_session(scope = nil, &amp;block)
+  method_name = scope.nil? ? :serialize : "#{scope}_serialize"
+  Warden::SessionSerializer.send :define_method, method_name, &amp;block
+end
+</code></pre></div></div>
+
+<p>在Warden::Config中定义的<code class="highlighter-rouge">serialize_into_session</code>方法可以把需要用来标识用户身份的信息系列化到cookie中，这是向外提供的一个接口，供外面去调用。做的事是在<code class="highlighter-rouge">Warden::SessionSerializer</code>中定义一个<code class="highlighter-rouge">#{scope}_serialize</code>的实例方法。在后面存储session时，会调用这个方法去求session的值，方法体就是我们在外部定义的块。在devise中定义的规则如下:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/devise-4.6.1/lib/devise/rails.rb
 warden_config.serialize_into_session(mapping.name) do |record|
-  mapping.to.serialize_into_session(record)
+  mapping.to.serialize_into_session(record) # serialize_into_session调用的是下面的方法
 end
 
 # ~/.rvm/gems/ruby-2.4.3/gems/devise-4.6.1/lib/devise/models/authenticatable.rb
@@ -185,7 +197,7 @@ def serialize_into_session(record)
 end
 </code></pre></div></div>
 
-<p>config中另外一个类似的方法是 <code class="highlighter-rouge">serialize_from_session</code> 使用和作用和上面类似。只不过这个是从session中读取出用户信息的。</p>
+<p>config中还有一个类似的方法<code class="highlighter-rouge">serialize_from_session</code>，作用和上面类似。只不过这个方法是从session中读取出用户信息的。</p>
 
 <p>知道了初始化时上面两个方法的作用，那warden是如何具体验证用户信息和保存用户信息的呢？其中就用到了叫strategies的东西，那个东西是外部提供给warden，然后warden在需要的时候会用那些strategies去验证用户是否有效，如果有效就调用<code class="highlighter-rouge">success!(resource)</code>这个方法。如用密码登陆用户时，devise是这样做的：</p>
 
@@ -224,7 +236,7 @@ def _run_strategies_for(scope, args) #:nodoc:
 end
 </code></pre></div></div>
 
-<p><code class="highlighter-rouge">_run_strategies_for</code>方法中的<code class="highlighter-rouge">valid?</code>和<code class="highlighter-rouge">strategy._run!</code>方法执行会执行到我们定义的strategy中的valid?和authenticate!方法，在devise中默认会定义好两个strategies，一个是database_authenticatable，一个是rememberable，第一个strategie是为了用密码去验证用户登录是否有效了，第二个是用来记住用户密码时候生成的一个token，保存在浏览器，过期时间比较长，这样在登录授权的那个cookie过期后，还可以用那个token去验证用户的身份。</p>
+<p><code class="highlighter-rouge">_run_strategies_for</code>方法中的<code class="highlighter-rouge">valid?</code>和<code class="highlighter-rouge">strategy._run!</code>方法会执行到我们定义在strategy中的valid?和authenticate!方法，在devise中默认会定义好两个strategies，一个是database_authenticatable，一个是rememberable，第一个strategie是为了用密码去验证用户登录是否有效了，第二个是用来记住用户密码时候生成的一个token，保存在浏览器，过期时间比较长，这样在登录授权的那个cookie过期后，还可以用那个token去验证用户的身份。</p>
 
 <p>在 <code class="highlighter-rouge">_perform_authentication</code> 方法中，如果strategy执行成功了，则会执行<code class="highlighter-rouge">set_user</code>方法</p>
 
@@ -257,7 +269,7 @@ def store(user, scope)
 end
 </code></pre></div></div>
 
-<p>上面的<code class="highlighter-rouge">send(method_name, user)</code>方法就是调用到了上面说的<code class="highlighter-rouge">Warden::SessionSerializer</code>中定义的一个<code class="highlighter-rouge">#{scope}_serialize</code>的实例方法，到这里就是把那个系列化的信息存到session中去的。</p>
+<p>上面的<code class="highlighter-rouge">send(method_name, user)</code>方法就是调用到了上面说的<code class="highlighter-rouge">Warden::SessionSerializer</code>中定义的一个<code class="highlighter-rouge">#{scope}_serialize</code>的实例方法，这里把系列化的信息存到session去了。</p>
 
 <p>存储后每次要验证cookie中用户身份的有效性，则通过调用fetch方法去获取cookie中存储的用户信息。</p>
 
@@ -272,8 +284,7 @@ end
 end
 </code></pre></div></div>
 
-<p>到这里基本的逻辑就比较清楚了，Warden提供一个接口，让用户去自定义验证的时候用什么策略(authenticate!方法)，保存到session中的系列值是什么，读取cookie中的系列值应该怎么去验证是否有效。然后在Warden内部负责把那些东西设置好，session设置的key，还有需要验证的步骤那些。</p>
-
+<p>到这里基本的逻辑就比较清楚了，Warden提供一个接口，让用户自定义验证，用什么方式(authenticate!方法)，保存到session中的值是什么，读取cookie中的系列值应该怎么去验证是否有效这一些列的要素。然后在Warden内部负责把那些东西设置好，session设置的key，还有需要验证的步骤有哪些。</p>
 
 
         </section>

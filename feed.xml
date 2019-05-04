@@ -10,7 +10,7 @@
       <item>
         <title>Ruby Warden</title>
         
-          <description>&lt;p&gt;目前项目遇到个需求，在一期用devise登陆的后台，在做二期的时候需要可以通过拿到一期的cookie，带到另外的子系统中去做api(用的是grape)的用户鉴权验证。这时候需要做的是保证在子系统中把cookie正确解析出来，而且需要验证解析出来的cookie的信息是否正确的，这时就需要了解devise依赖的warden是怎么设置用户鉴权的cookie值。周末有时间了解了一下devise和warden实现的细节问题，记录一下这个过程。&lt;/p&gt;
+          <description>&lt;p&gt;目前项目遇到个需求，一期用devise做登陆的后台，在做二期的时候需要可以通过一期的cookie，带到用api(grape)做鉴权的子系统中去。这时候需要做的是保证在子系统中能把cookie正确解析出来，而且需要验证解析出来的cookie的信息是否是正确的，这时就需要了解devise依赖的warden是怎么设置用户鉴权cookie值的。周末有时间了解了一下devise和warden实现的细节问题，记录一下这个过程。&lt;/p&gt;
 
 </description>
         
