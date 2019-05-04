@@ -210,7 +210,7 @@ end
         <a class="read-next-story " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-cancancan">
             <section class="post">
                 <h2>Cancancan 的实现原理</h2>
-                <p>用了几年的[cancancan](https://github.com/CanCanCommunity/cancancan)，说起来有些尴尬。明明是也是用基本的代码写出来的，可是却不知道是怎么搭建起来的。用的时候去查看文档，每次都要使用在controller中能找到current_user方法，需要定义一个初始的Ability Model，然后定义各种各样的can方法，然后在每个需要权限的地方用can?去判断，更具有魔力的是controller方法中直接添加 `load_and_authorize_resource` 就可以判断权限了，不需要做其它的判断，各种各样的黑魔法。每每想起这些都觉得有点慌，使用的时候只要功能运行成功了就私自窃喜，满满的成就感，谁知道那只是大脑的一种欺骗。其实只是用对了，对于其中是怎么发生的，始终不知所以然。由于现在开发的系统对cancancan依赖的比较大，总结一些其中实现的原理。 #### Cancancan实现的原理 简单的说，主要的逻辑线就是通过在`ability.rb`那个文件中声明can方法的权限，在gem中会把那个方法声明的操作和资源(就是model)做一个存储，变成一个虚拟模型(下面详细分析)。然后在controller的`authorize!`和view的`can?`方法的调用时，就用那个模型去做判断就可以了。 首先为ActionController::Base类定义一些基本的方法，继承了这个类的controller都会定义好这些方法。其中比较常用的是`authorize!`, `load_and_authorize_resource`(这个方法在每个action执行之前执行`load_resource`和`authorize_resource`方法)，同时会声明:can?, :cannot?, :current_ability方法为helper方法，这样在view中就可以使用这三个方法了。下面是对controller做方法扩展。 ``` if defined? ActionController::Base...</p>
+                <p></p>
             </section>
         </a>
     
@@ -220,7 +220,7 @@ end
         <a class="read-next-story prev " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-rack">
             <section class="post">
                 <h2>Ruby Middleware</h2>
-                <p>Rack官网对于Rack的介绍比较简单，只是介绍了Rack的作用和基本的使用。不过也可能因为不复杂，所以才用简单的几段话介绍了Rack。虽然我们不用了解middleware的调用原理也可以开发出能使用的middleware，但是总有点不知所以然的感觉，所以抽空总结了下Rack中middleware的调用原理。 Rack middleware的使用 配置config.ru文件，定义好要用到的middleware和要run的middleware，为什么有些middleware需要run，有些需要use，下面再详细介绍。下面是一个简单的调用。 # ./config.ru app = Proc.new { |env| ['200', {'Content-Type' =&gt; 'text/html'},...</p>
+                <p></p>
             </section>
         </a>
     

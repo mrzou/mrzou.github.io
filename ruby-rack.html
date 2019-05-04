@@ -419,7 +419,7 @@ end
         <a class="read-next-story " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-sprocket">
             <section class="post">
                 <h2>Srpocket 如何加入gem静态文件路径</h2>
-                <p>平时候我们如果用Gem引进的方式去加载前端的插件，一般我们都是bundle了gem之后就直接去require对应的文件了。在引的时候一直有个疑问，Rails是如何加载这些插件进来的？它是怎么知道那个文件的位置的？其中用了什么手段去做的，一直比较好奇，现在有空总结了一下。 ### Sprocket对gem中静态文件的加载 在sprockets-rails gem中为Rails::Engine执行了一个initializer的方法: ``` initializer :append_assets_path, :group => :all do |app| app.config.assets.paths.unshift(*paths["vendor/assets"].existent_directories) app.config.assets.paths.unshift(*paths["lib/assets"].existent_directories)...</p>
+                <p></p>
             </section>
         </a>
     
@@ -429,7 +429,7 @@ end
         <a class="read-next-story prev " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-puma">
             <section class="post">
                 <h2>Ruby Puma 原理解析</h2>
-                <p>App服务器一直都是在后台默默的接受，处理那些乱七八糟的请求。一般开发很少会接触到这些方面的使用，除非是为了优化服务器才会去配置Puma。使用的时候也只是大概了解Puma接受的一些请求转化到Rails App所做的一些工作。但是对于Puma中的请求转化和处理一直比较迷惑，现在有时间，看了一下源码，学习总结了下Puma的实现过程，原理和之前产生的一些疑问。其中单进程模式介绍的比价详细，这种模式是集群模式的特例，只不过集群模式创建了多几个woker而已，其中对应请求的处理其实是一样的。下面的Puma版本是3.12.0。 启动过程 合并传入的参数和设置默认参数 初始化 Launcher 类，其中会根据workers的数量去决定初始化集群模式还是单进程模式 执行 @launcher.run，其中会执行 @runner.run 方法，这个方法是Single类中的run方法 接着调用 load_and_bind =》ConfigMiddleware.new(self, found)...</p>
+                <p></p>
             </section>
         </a>
     

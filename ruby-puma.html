@@ -536,7 +536,7 @@ end
         <a class="read-next-story " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-rack">
             <section class="post">
                 <h2>Ruby Middleware</h2>
-                <p>[Rack官网](https://rack.github.io/)对于Rack的介绍比较简单，只是介绍了Rack的作用和基本的使用。不过也可能因为不复杂，所以才用简单的几段话介绍了Rack。虽然我们不用了解middleware的调用原理也可以开发出能使用的middleware，但是总有点不知所以然的感觉，所以抽空总结了下Rack中middleware的调用原理。 ### Rack middleware的使用 1. 配置config.ru文件，定义好要用到的middleware和要run的middleware，为什么有些middleware需要run，有些需要use，下面再详细介绍。下面是一个简单的调用。 ``` # ./config.ru app = Proc.new { |env| ['200',...</p>
+                <p></p>
             </section>
         </a>
     
@@ -546,7 +546,7 @@ end
         <a class="read-next-story prev " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-sidekiq">
             <section class="post">
                 <h2>Ruby Sidekiq的使用</h2>
-                <p>Sidekiq 作为后台的一种异步定时任务队列处理服务，是通过什么方式去处理队列任务的，和Redis是怎么配合的？涉及到的一些技术原理一直比较模糊，有空总结了一下查看Sidekiq源码学到的东西。 Sidekiq启动时做了什么事情？ require Rails APP上面的environment.rb里面的东西，可以让sidekiq中有rails中的执行环境。 新建默认的concurrency的数目，每个对应一个线程。 启动28个线程，一个是主线程，一个健康检查线程，一个scheduler线程，25个processor线程 什么时候去执行任务？ 在manager start的时候去start processor，那些线程会有个循环在那里不间断的去队列里取任务出来执行。 从任务进入redis到任务执行都经过了哪些步骤？ 开始时都是生成一些参数，其中参数会添加一些字段上去，有class, queue,...</p>
+                <p></p>
             </section>
         </a>
     

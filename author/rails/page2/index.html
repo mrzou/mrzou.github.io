@@ -142,6 +142,45 @@
     
     <article class="post">
         <header class="post-header">
+            <h2 class="post-title"><a href="/ruby-puma">Ruby Puma 原理解析</a></h2>
+        </header>
+        <section class="post-excerpt">
+            <p>App服务器一直都是在后台默默的接受，处理那些乱七八糟的请求。一般开发很少会接触到这些方面的使用，除非是为了优化服务器才会去配置Puma。使用的时候也只是大概了解Puma接受的一些请求转化到Rails App所做的一些工作。但是对于Puma中的请求转化和处理一直比较迷惑，现在有时间，看了一下源码，学习总结了下Puma的实现过程，原理和之前产生的一些疑问。其中单进程模式介绍的比价详细，这种模式是集群模式的特例，只不过集群模式创建了多几个woker而已，其中对应请求的处理其实是一样的。下面的Puma版本是3.12.0。
+
+ <a class="read-more" href="/ruby-puma">&raquo;</a></p>
+        </section>
+        <footer class="post-meta">
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+
+            <!-- [[tags prefix=" on "]] -->
+            
+                on
+                
+                    
+                       <a href='/tag/ruby'>Ruby</a>,
+                    
+                
+                    
+                       <a href='/tag/puma'>Puma</a>
+                    
+                
+            
+            <time class="post-date" datetime="2019-03-09">09 Mar 2019</time>
+        </footer>
+    </article>
+    
+    <article class="post">
+        <header class="post-header">
             <h2 class="post-title"><a href="/ruby-sidekiq">Ruby Sidekiq的使用</a></h2>
         </header>
         <section class="post-excerpt">

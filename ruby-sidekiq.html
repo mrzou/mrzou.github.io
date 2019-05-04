@@ -228,7 +228,7 @@ end
         <a class="read-next-story " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-puma">
             <section class="post">
                 <h2>Ruby Puma 原理解析</h2>
-                <p>App服务器一直都是在后台默默的接受，处理那些乱七八糟的请求。一般开发很少会接触到这些方面的使用，除非是为了优化服务器才会去配置Puma。使用的时候也只是大概了解Puma接受的一些请求转化到Rails App所做的一些工作。但是对于Puma中的请求转化和处理一直比较迷惑，现在有时间，看了一下源码，学习总结了下Puma的实现过程，原理和之前产生的一些疑问。其中单进程模式介绍的比价详细，这种模式是集群模式的特例，只不过集群模式创建了多几个woker而已，其中对应请求的处理其实是一样的。下面的Puma版本是3.12.0。 ### 启动过程 1. 合并传入的参数和设置默认参数 2. 初始化 `Launcher` 类，其中会根据workers的数量去决定初始化集群模式还是单进程模式 3. 执行 `@launcher.run`，其中会执行 `@runner.run` 方法，这个方法是Single类中的run方法...</p>
+                <p></p>
             </section>
         </a>
     
@@ -238,7 +238,7 @@ end
         <a class="read-next-story prev " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-tsort-usage">
             <section class="post">
                 <h2>Ruby TSort 在Rails中的使用</h2>
-                <p>平时候接触到的只是业务逻辑层面的使用，很少触及到算法方面的应用，在看rails应用的启动过程时，偶然间发现的一个算法应用，然后查看了相关的资料，总结下TSort算法在Rails中的应用。 TSort的理解 TSort的意思: TSort是拓扑排序英文的缩写，拓扑排序是有向图按其线性排列的一种算法，有个先后的排序顺序，而且不能有环出现，如果有环出现，则不算是拓扑结构了。一般拓扑结构可以用来表示元素的一些依赖关系的处理，如果事物A需要在事物B之前处理，则是B依赖于A的执行，B要先处理，用箭头表示为 A -&gt; B。 TSort的使用: TSort.tsort_each(each_node, each_child) each_node和each_child是两个block，同时这两个block接收在TSort中定义的block1和block2作为参数传递进去(block1和block2其实是对应到each_node.call和each_child.call后面的块的)，逐个作用在各个节点和子节点上。意思是让用户自己定义传入进来的节点和子节点是什么。这些节点都作为这两个block的参数使用。 each_node(&amp;block) 定义这个方法是因为在拓扑结构中的点可能是对象，或是数字，或是一些字母类的东西，但是点和点间产生关联需要有关联因子，关联因子可能是一个数字，一个字符串，或是一个object。each_node这个block就是取出关联因子，然后逐个作为参数去调用block1就可以了。 each_child(&amp;block) 这个方法的目的和each_node差不多，但是这个方法的作用因子是对应的子节点，如下图：...</p>
+                <p></p>
             </section>
         </a>
     

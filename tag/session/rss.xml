@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+   
+      <title>mrzou.github.io/jasper/</title>
+   
+   <link>http://localhost:4000</link>
+   <description>学习的一些记录</description>
+   <language>zh-cn</language>
+   <managingEditor> </managingEditor>
+   <atom:link href="rss" rel="self" type="application/rss+xml" />
+   
+	<item>
+	  <title>Rails Cookie Session</title>
+	  <link>//rails-cookie-session</link>
+	  <author></author>
+	  <pubDate>2019-05-03T18:18:00+08:00</pubDate>
+	  <guid>//rails-cookie-session</guid>
+	  <description><![CDATA[
+	     <p><a href="https://mrzou.github.io/ruby-warden">上一节</a>介绍了warden是如何验证用户的登录授权身份，但是对于cookie和session之间是如何生成的，是如何产生关联的，然后是怎么通过保存session数据到cookie中的还有点模糊。总结分享下Rails中是如何处理cookie和session的。</p>
+
+<h3 id="rails中session和cookie是如何关联的">Rails中Session和Cookie是如何关联的</h3>
+
+<p>session可以有多种保存方式，可以通过保存在cookie中，也可以通过cache_store或者activerecord_session_store(现在用独立的<a href="https://github.com/rails/activerecord-session_store">gem</a>来实现了)的方式去保存。如果是通过cookie保存的方式，则会把session中设置的键值对通过处理后放到一个特定的key下面，默认是<code class="highlighter-rouge">项目名_session</code>。每次浏览器发出请求，都会带上该cookie键值对，然后服务端通过解出那串cookie值来识别设置session。而数据库或者用cache的方式都是通过把请求中的session_id解析出来，再去数据库查找对应的session数据。下面具体讨论session存储在cookie中的方式。</p>
+
+<h4 id="rails中设置session存储方式">Rails中设置Session存储方式</h4>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/railties-5.1.6.2/lib/rails/application/finisher.rb
+initializer :setup_default_session_store, before: :build_middleware_stack do |app|
+  unless app.config.session_store?
+    app_name = app.class.name ? app.railtie_name.chomp("_application") : ""
+    app.config.session_store :cookie_store, key: "_#{app_name}_session"
+  end
+end
+</code></pre></div></div>
+
+<p>如果在application.rb中没有配置session_store，则会用cookie_store作为默认的session存储方式，key默认的名字是<code class="highlighter-rouge">_#{app_name}_session</code>。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/railties-5.1.6.2/lib/rails/application/default_middleware_stack.rb
+middleware.use config.session_store, config.session_options
+
+# ~/.rvm/gems/ruby-2.4.3/gems/railties-5.1.6.2/lib/rails/application/configuration.rb
+def session_store(new_session_store = nil, **options)
+  ...
+  else
+    case @session_store
+    when :disabled
+      nil
+    when :active_record_store
+      ActionDispatch::Session::ActiveRecordStore
+    when Symbol
+      ActionDispatch::Session.const_get(@session_store.to_s.camelize)
+    else
+      @session_store
+    end
+  end
+end
+</code></pre></div></div>
+
+<p>上面是通过<code class="highlighter-rouge">@session_store</code>实例变量的名字去获取对应的类，而@session_store是在执行<code class="highlighter-rouge">setup_default_session_store</code>初始化的时候设置的cookie_store。</p>
+
+<p>session_store是一个middleware，项目初始化的时候会去初始化一个session对象</p>
+
+<p><code class="highlighter-rouge">ActionDispatch::Session::CookieStore#initialize</code> =&gt; <code class="highlighter-rouge">ActionDispatch::Session::Compatibility#initialize</code> =&gt; <code class="highlighter-rouge">Rack::Session::Abstract::Persisted#initialize</code></p>
+
+<p>上面是一个middleware初始化调用栈的过程</p>
+
+<p>CookieStore继承了AbstractStore类，AbstractStore继承了Rack::Session::Abstract::Persisted，这个类是以middleware的接口规范去定义的。所以当一个请求发送过来时，会执行到CookieStore这个middleware上的call方法，然后再调用context方法。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/rack-2.0.6/lib/rack/session/abstract/id.rb
+
+def call(env)
+  context(env)
+end
+
+def context(env, app=@app)
+  req = make_request env
+  prepare_session(req) # 在header中设置session
+  status, headers, body = app.call(req.env)
+  res = Rack::Response::Raw.new status, headers
+  commit_session(req, res)
+  [status, headers, body]
+end
+</code></pre></div></div>
+
+<p>上面的context方法可分为执行<code class="highlighter-rouge">app.call</code>，执行<code class="highlighter-rouge">app.call</code>之前和之后这三个部分。在调用<code class="highlighter-rouge">app.call</code>之前是在header(这里的header不是http的header，而是作为项目环境中的一个键值对保存，下面的header默认指这个)中初始化了一个Session实例，到时在controller中对session的键值对的设置都会改变其中的实例变量的值。接着就是执行<code class="highlighter-rouge">app.call</code>等一系列的middleware，设置好cookie和session。第三部分就是利用第二部分设置好的session，通过上面的<code class="highlighter-rouge">commit_session</code>方法把session中的数据经过处理后set到cookie中，上面是总的过程，下面分步解析。</p>
+
+<h4 id="初始化session实例">初始化Session实例</h4>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/middleware/session/abstract_store.rb
+def prepare_session(req)
+  Request::Session.create(self, req, @default_options)
+end
+
+# ~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/request/session.rb
+def self.create(store, req, default_options)
+  session_was = find req # 查看头部是否有保存rack.session这个header
+  session     = Request::Session.new(store, req) # 初始化的实例变量如下
+  session.merge! session_was if session_was
+
+  set(req, session) # 把Session实例作为value，rack.session作为key，set到头部中
+  Options.set(req, Request::Session::Options.new(store, default_options))
+  session
+end
+
+def self.find(req)
+  req.get_header ENV_SESSION_KEY
+end
+
+~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/request/session.rb
+def initialize(by, req)
+  @by       = by # 存储session的方式
+  @req      = req
+  @delegate = {} # 存储在session里的key，value值
+  @loaded   = false # 记录cookie中的值是否load过到session中了
+  @exists   = nil # we haven't checked yet
+end
+</code></pre></div></div>
+
+<p>上面是初始化session部分的说明，主要是设置session存储方式和设置一些实例变量。同时把session实例设置到header中。</p>
+
+<h4 id="设置session和cookie">设置Session和Cookie</h4>
+
+<p>在执行<code class="highlighter-rouge">app.call</code>时，会执行到一系列middleware，其中有些middleware会调用到一些cookies和session方法，就是利用这些方法设置了cookie和session的值。如warden，用session记录了用户的信息。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/warden-1.2.8/lib/warden/session_serializer.rb
+def store(user, scope)
+  ...
+  session[key_for(scope)] = specialized ? send(method_name, user) : serialize(user)
+end
+
+# ~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/request/session.rb
+def []=(key, value)
+  load_for_write! # 这个用于把cookies中的session值加载到session实例中
+  @delegate[key.to_s] = value
+end
+</code></pre></div></div>
+
+<p>设置session之前，会先去检查cookie是否loaded进session中了，如果已经加载过了，则不会再次加载，防止数据再次加载会发生覆盖。如果没有加载过，则会执行load!方法加载一次cookie的值到session中，该过程下面解析。设置session的过程其实就是执行session中的<code class="highlighter-rouge">[]=</code>方法，在<code class="highlighter-rouge">@delegate</code>实例变量中加入键值对。</p>
+
+<p>类似的，设置cookies，也是为实例变量设置键值对。但是session的所有键值对设置到cookies中是经过处理的，键默认是开头部分提到的<code class="highlighter-rouge">_#{app_name}_session</code>。具体如下：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_controller/metal/cookies.rb
+def cookies # 为controller中定义的cookies方法
+  request.cookie_jar
+end
+
+# ~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/middleware/cookies.rb
+def cookie_jar
+  fetch_header("action_dispatch.cookies".freeze) do
+    self.cookie_jar = Cookies::CookieJar.build(self, cookies)
+  end
+end
+
+def []=(name, options)
+  if options.is_a?(Hash)
+    options.symbolize_keys!
+    value = options[:value]
+  else
+    value = options
+    options = { value: value }
+  end
+
+  handle_options(options)
+
+  if @cookies[name.to_s] != value || options[:expires]
+    @cookies[name.to_s] = value
+    @set_cookies[name.to_s] = options
+    @delete_cookies.delete(name.to_s)
+  end
+
+  value
+end
+</code></pre></div></div>
+
+<p>上面就是设置cookie方法调用栈的执行过程，通过request中的cookie_jar找到设置cookie的对应方法。cookie_jar可以理解为装cookie的罐子，里面存储着cookie的键值对。如果cookie需要进行加密或者签名等处理，则会通过调用对应的方法代理到一个类去，然后代理的类用<code class="highlighter-rouge">parent_jar</code>实例变量记录原先的CookieJar类，在代理的类上设置的cookie就是设置在<code class="highlighter-rouge">parent_jar</code>上面。session中的键值对放到cookie中就是通过代理到EncryptedCookieJar类中去，然后经过加密签名处理后再设置到cookie_jar中去。</p>
+
+<h4 id="读取cookie数据到session">读取Cookie数据到Session</h4>
+
+<p>程序在初始化session后，在第一次需要读取session中某个key的值时，会先把cookie中存储session的那个键值对读取出来。执行的过程如下：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/request/session.rb
+def load!
+  id, session = @by.load_session @req # 把session_id的值和cookie中的数据解析出来，放到@delegate实例变量中去
+  options[:id] = id
+  @delegate.replace(stringify_keys(session))
+  @loaded = true
+end
+
+# ~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/middleware/session/cookie_store.rb
+def load_session(req)
+  stale_session_check! do
+    data = unpacked_cookie_data(req) # 从cookie中取出数据到session
+    data = persistent_session_id!(data)
+    [data["session_id"], data]
+  end
+end
+
+# unpacked_cookie_data =》get_cookie 方法调用栈
+
+def get_cookie(req)
+  cookie_jar(req)[@key] # @key值就是所有session的键值对设置到cookie中的name
+end
+
+~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/middleware/cookies.rb
+def [](name)
+  if data = @parent_jar[name.to_s]
+    parse name, data # 通过调用CookieJar#[]中的方法取出处理过的session键值对，然后通过调用对应的解析方式解析出正确的键值对。
+  end
+end
+</code></pre></div></div>
+
+<p>上面是从cookie中取出session的数据的过程，其实只是读取cookie数据的过程，只不过读取的值需要解密和验证一下数据的正确性。</p>
+
+<h4 id="设置session数据到cookie">设置Session数据到Cookie</h4>
+
+<p>app执行call方法后，在一些middleware中设置的cookie或session。执行call方法后，通过commit_session方法调用，把session中的数据处理后放到cookie中去。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>~/.rvm/gems/ruby-2.4.3/gems/rack-2.0.6/lib/rack/session/abstract/id.rb
+def commit_session(req, res)
+  session_data = session.to_hash.delete_if { |k,v| v.nil? } # 把session中@delegate的数据返回来
+  data = write_session(req, session_id, session_data, options) # session里的数据
+  ...
+  else
+    cookie = Hash.new
+    cookie[:value] = data
+    cookie[:expires] = Time.now + options[:expire_after] if options[:expire_after]
+    cookie[:expires] = Time.now + options[:max_age] if options[:max_age]
+    set_cookie(req, res, cookie.merge!(options)) # 放到cookie里面去
+  end
+end
+
+~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/middleware/session/cookie_store.rb
+def set_cookie(request, session_id, cookie)
+  cookie_jar(request)[@key] = cookie
+end
+
+def cookie_jar(request)
+  request.cookie_jar.signed_or_encrypted # 代理到EncryptedCookieJar类去处理session的键值对
+end
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">set_cookie</code>方法中调用的<code class="highlighter-rouge">cookie_jar</code>方法会去检查头部中是否设置了<code class="highlighter-rouge">cookie_jar</code>，如果没有设置，就会通过实例化Cookies::CookieJar设置到头部，从而在需要的时候可以使用。Cookies::CookieJar类主要是用来存储一些cookies的键值对，同时为cookie值的处理方式提供一个接口，可以通过那些接口对cookie进行签名、加密等各种处理方式。<code class="highlighter-rouge">set_cookie</code>方法的调用会回到上面设置平常cookie的调用过程，其中cookie是已经经过加密，签名的处理过程了，直接设置返回给浏览器就可以了。至此从一个请求过来，把浏览器中cookie的session部分加载到session实例，到重新把session的键值对设置到cookie中就形成了一个闭环。</p>
+
+<h3 id="cookie对数据的处理方式">Cookie对数据的处理方式</h3>
+
+<p>上面是cookie和session之间的交互关系，下面讨论下cookie设置到http头部的数据的几种格式。一种是Cookie直接对数据进行设置，如<code class="highlighter-rouge">cookies[:user_id] = 2</code>。另外一种是为了防止别有用心的人修改cookie的值而设置的，可以用签名的方式设置cookie，防止此类情况，如cookies.signed[:user_id] = 2。但是上面签名方式是通过base64 encode的，别人可以decode出来查看数据，所以第三种方式是通过给数据加密的方式去设置Cookie，这时候别人没有办法查看，也没有办法更改你的数据。下面介绍下这三种数据的设置方式。</p>
+
+<h4 id="直接设置cookie">直接设置Cookie</h4>
+
+<p>这种方式比较简单，可以直接通过cookies调用方法去设置cookie。如<code class="highlighter-rouge">cookies[:user_id] = 1</code>。该数值会直接显示在浏览器上，并且还可以更改数值后提交到服务器端。这种方式的实现是直接调用CookieJar的实例方法<code class="highlighter-rouge">[]=</code>来把键值对设置到<code class="highlighter-rouge">@cookies</code>实例变量中的。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/middleware/cookies.rb, line 265
+def []=(name, options)
+  if options.is_a?(Hash)
+    options.symbolize_keys!
+    value = options[:value]
+  else
+    value = options
+    options = { value: value }
+  end
+
+  handle_options(options)
+
+  if @cookies[name.to_s] != value || options[:expires]
+    @cookies[name.to_s] = value
+    @set_cookies[name.to_s] = options
+    @delete_cookies.delete(name.to_s)
+  end
+
+  value
+end
+</code></pre></div></div>
+
+<h4 id="用签名的方式设置cookie">用签名的方式设置Cookie</h4>
+
+<p>这种方式可以防止别人更改cookie数据，但是在浏览器上可以查看cookie的值。如<code class="highlighter-rouge">cookies.signed[:user_id] = 1</code>，这是在浏览器上显示的user_id的值为<code class="highlighter-rouge">Mg%3D%3D--2205b41e2e653cc2aba580b6a1213de57a5cc233</code>，”–“前面的部分为user_id用base64加密的数值，后面的部分是该值做hash计算算出来的结果，主要是为了防止别人篡改前面部分的数据。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/middleware/cookies.rb, line 195
+def signed
+  @signed ||=
+    if upgrade_legacy_signed_cookies?
+      UpgradeLegacySignedCookieJar.new(self)
+    else
+      SignedCookieJar.new(self)
+    end
+end
+</code></pre></div></div>
+
+<p>通过判断是否同时存在secret_key_base和secret_token的值决定执行哪种处理方式。如果是SignedCookieJar的处理方式，则生成和解析的方法如下：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/middleware/cookies.rb, line 549
+def parse(name, signed_message)
+  deserialize name, @verifier.verified(signed_message)
+end
+
+def commit(options)
+  options[:value] = @verifier.generate(serialize(options[:value]))
+
+  raise CookieOverflow if options[:value].bytesize &gt; MAX_COOKIE_SIZE
+end
+</code></pre></div></div>
+
+<h4 id="用加密的方式设置cookie">用加密的方式设置Cookie</h4>
+
+<p>第三种方式是上面两种方式的加强，生成的数据在浏览器上既更改不了，也查看不了，数据都是加密过的，只有有解密的key才可以解出来。通过调用<code class="highlighter-rouge">cookies.encrypted[:user_id]=1</code>来进行加密，生成的数值是<code class="highlighter-rouge">VTRqOVpsUnJoaFhnTFpRcUF1OWdOUT09LS0xSXRUWmI5UWQrTXg1MDNXbUhhSC93PT0%3D--2f18602eec2a4816591345caa62ddcce55c3eb83</code>，<code class="highlighter-rouge">--</code>前面的部分是加密后的值和加密的iv变量encode的值，后面部分是前面部分hash计算的值。也是为了防止别人更改前面部分的值。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/middleware/cookies.rb, line 585
+def parse(name, encrypted_message)
+  deserialize name, @encryptor.decrypt_and_verify(encrypted_message)
+rescue ActiveSupport::MessageVerifier::InvalidSignature, ActiveSupport::MessageEncryptor::InvalidMessage
+  nil
+end
+
+def commit(options)
+  options[:value] = @encryptor.encrypt_and_sign(serialize(options[:value]))
+
+  raise CookieOverflow if options[:value].bytesize &gt; MAX_COOKIE_SIZE
+end
+</code></pre></div></div>
+
+<h3 id="在响应中设置set-cookie-header">在响应中设置Set-Cookie Header</h3>
+
+<p>上面的过程是准备cookies数据的过程，准备完成后是怎么用符合浏览器的格式去设置到响应的http头部去呢？其实也是通过middleware的方式去设置的，具体如下：</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>~/.rvm/gems/ruby-2.4.3/gems/actionpack-5.1.6.2/lib/action_dispatch/middleware/cookies.rb
+
+module ActionDispatch
+  class Cookies
+  def initialize(app)
+    @app = app
+  end
+
+  def call(env)
+    request = ActionDispatch::Request.new env
+
+    status, headers, body = @app.call(env)
+
+    if request.have_cookie_jar?
+      cookie_jar = request.cookie_jar
+      unless cookie_jar.committed?
+        cookie_jar.write(headers)
+        if headers[HTTP_HEADER].respond_to?(:join)
+          headers[HTTP_HEADER] = headers[HTTP_HEADER].join("\n")
+        end
+      end
+    end
+
+    [status, headers, body]
+  end
+  end
+end
+
+class CookieJar
+  def write(headers)
+    if header = make_set_cookie_header(headers[HTTP_HEADER])
+      headers[HTTP_HEADER] = header
+    end
+  end
+
+   def make_set_cookie_header(header)
+     header = @set_cookies.inject(header) { |m, (k, v)|
+       if write_cookie?(v)
+         ::Rack::Utils.add_cookie_to_header(m, k, v)
+       else
+         m
+       end
+     }
+     @delete_cookies.inject(header) { |m, (k, v)|
+       ::Rack::Utils.add_remove_cookie_to_header(m, k, v)
+     }
+    end
+  end
+end
+
+~/.rvm/gems/ruby-2.4.3/gems/rack-2.0.6/lib/rack/utils.rb
+def add_cookie_to_header(header, key, value)
+  case value
+  when Hash
+    domain  = "; domain=#{value[:domain]}"   if value[:domain]
+    path    = "; path=#{value[:path]}"       if value[:path]
+    max_age = "; max-age=#{value[:max_age]}" if value[:max_age]
+    expires = "; expires=" +
+      rfc2822(value[:expires].clone.gmtime) if value[:expires]
+    secure = "; secure"  if value[:secure]
+    httponly = "; HttpOnly" if (value.key?(:httponly) ? value[:httponly] : value[:http_only])
+    same_site =
+      case value[:same_site]
+      when false, nil
+        nil
+      when :lax, 'Lax', :Lax
+        '; SameSite=Lax'.freeze
+      when true, :strict, 'Strict', :Strict
+        '; SameSite=Strict'.freeze
+      else
+        raise ArgumentError, "Invalid SameSite value: #{value[:same_site].inspect}"
+      end
+    value = value[:value]
+  end
+  value = [value] unless Array === value
+
+  cookie = "#{escape(key)}=#{value.map { |v| escape v }.join('&amp;')}#{domain}" \
+    "#{path}#{max_age}#{expires}#{secure}#{httponly}#{same_site}"
+
+  case header
+  when nil, ''
+    cookie
+  when String
+    [header, cookie].join("\n")
+  when Array
+    (header + [cookie]).join("\n")
+  else
+    raise ArgumentError, "Unrecognized cookie header value. Expected String, Array, or nil, got #{header.inspect}"
+  end
+end
+</code></pre></div></div>
+
+<p>上面make_set_cookie_header方法中遍历<code class="highlighter-rouge">@set_cookies</code>实例变量去调用add_cookie_to_header方法组装cookie的值，然后拼装成一定格式的字符串设置到http头部，其中key为<code class="highlighter-rouge">Set-Cookie</code>，值是不同的cookie按一定格式拼接后用<code class="highlighter-rouge">\n</code>分隔开的字符串。</p>
+
+	  ]]></description>
+	</item>
+
+
+</channel>
+</rss>

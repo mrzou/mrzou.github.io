@@ -296,13 +296,20 @@ end
 
     <!-- [[! next_post ]] -->
     
+        <a class="read-next-story " style="background-image: url(/assets/images/cover3.jpg)" href="/rails-cookie-session">
+            <section class="post">
+                <h2>Rails Cookie Session</h2>
+                <p></p>
+            </section>
+        </a>
+    
     <!-- [[! /next_post ]] -->
     <!-- [[! prev_post ]] -->
     
         <a class="read-next-story prev " style="background-image: url(/assets/images/cover3.jpg)" href="/ruby-cancancan">
             <section class="post">
                 <h2>Cancancan 的实现原理</h2>
-                <p>用了几年的cancancan，说起来有些尴尬。明明是也是用基本的代码写出来的，可是却不知道是怎么搭建起来的。用的时候去查看文档，每次都要使用在controller中能找到current_user方法，需要定义一个初始的Ability Model，然后定义各种各样的can方法，然后在每个需要权限的地方用can?去判断，更具有魔力的是controller方法中直接添加 load_and_authorize_resource 就可以判断权限了，不需要做其它的判断，各种各样的黑魔法。每每想起这些都觉得有点慌，使用的时候只要功能运行成功了就私自窃喜，满满的成就感，谁知道那只是大脑的一种欺骗。其实只是用对了，对于其中是怎么发生的，始终不知所以然。由于现在开发的系统对cancancan依赖的比较大，总结一些其中实现的原理。 Cancancan实现的原理 简单的说，主要的逻辑线就是通过在ability.rb那个文件中声明can方法的权限，在gem中会把那个方法声明的操作和资源(就是model)做一个存储，变成一个虚拟模型(下面详细分析)。然后在controller的authorize!和view的can?方法的调用时，就用那个模型去做判断就可以了。 首先为ActionController::Base类定义一些基本的方法，继承了这个类的controller都会定义好这些方法。其中比较常用的是authorize!, load_and_authorize_resource(这个方法在每个action执行之前执行load_resource和authorize_resource方法)，同时会声明:can?, :cannot?, :current_ability方法为helper方法，这样在view中就可以使用这三个方法了。下面是对controller做方法扩展。 if defined? ActionController::Base ActionController::Base.class_eval do...</p>
+                <p></p>
             </section>
         </a>
     
