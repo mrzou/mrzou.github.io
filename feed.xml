@@ -8,6 +8,21 @@
     
       
       <item>
+        <title>Algorithm</title>
+        
+          <description>&lt;p&gt;«漫画算法»是一本偶然间发现的算法书，算是一份意外的收获吧。之前看到的很多书荐，买来都吃灰了也没翻过，这本算法书是第一次看完,小小总结一下。&lt;/p&gt;
+
+</description>
+        
+        <pubDate>Sat, 01 Jun 2019 10:18:00 +0000</pubDate>
+        <link>
+        http://localhost:4000/algorithm-comic</link>
+        <guid isPermaLink="true">http://localhost:4000/algorithm-comic</guid>
+      </item>
+      
+    
+      
+      <item>
         <title>Rails Cookie Session</title>
         
           <description>&lt;p&gt;&lt;a href=&quot;https://mrzou.github.io/ruby-warden&quot;&gt;上一节&lt;/a&gt;介绍了warden是如何验证用户的登录授权身份，但是对于cookie和session之间是如何生成的，是如何产生关联的，然后是怎么通过保存session数据到cookie中的还有点模糊。总结分享下Rails中是如何处理cookie和session的。&lt;/p&gt;
