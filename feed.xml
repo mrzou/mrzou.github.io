@@ -8,6 +8,21 @@
     
       
       <item>
+        <title>Ruby Middleware</title>
+        
+          <description>&lt;p&gt;&lt;a href=&quot;https://rack.github.io/&quot;&gt;Rack官网&lt;/a&gt;对于Rack的介绍比较简单，只是介绍了Rack的作用和基本的使用。虽然我们不用了解middleware的调用原理也可以开发出能使用的middleware，但是总有点不知所以然的感觉，所以抽空总结了下Rack中middleware的调用原理。&lt;/p&gt;
+
+</description>
+        
+        <pubDate>Fri, 11 Oct 2019 10:18:00 +0000</pubDate>
+        <link>
+        http://localhost:4000/ruby-rack</link>
+        <guid isPermaLink="true">http://localhost:4000/ruby-rack</guid>
+      </item>
+      
+    
+      
+      <item>
         <title>Algorithm</title>
         
           <description>&lt;p&gt;«漫画算法»是一本偶然间发现的算法书，算是一份意外的收获吧。之前看到的很多书荐，买来都吃灰了也没翻过，这本算法书是第一次看完,小小总结一下。&lt;/p&gt;
@@ -78,21 +93,6 @@
         <link>
         http://localhost:4000/ruby-sprocket</link>
         <guid isPermaLink="true">http://localhost:4000/ruby-sprocket</guid>
-      </item>
-      
-    
-      
-      <item>
-        <title>Ruby Middleware</title>
-        
-          <description>&lt;p&gt;&lt;a href=&quot;https://rack.github.io/&quot;&gt;Rack官网&lt;/a&gt;对于Rack的介绍比较简单，只是介绍了Rack的作用和基本的使用。不过也可能因为不复杂，所以才用简单的几段话介绍了Rack。虽然我们不用了解middleware的调用原理也可以开发出能使用的middleware，但是总有点不知所以然的感觉，所以抽空总结了下Rack中middleware的调用原理。&lt;/p&gt;
-
-</description>
-        
-        <pubDate>Sat, 09 Mar 2019 10:18:00 +0000</pubDate>
-        <link>
-        http://localhost:4000/ruby-rack</link>
-        <guid isPermaLink="true">http://localhost:4000/ruby-rack</guid>
       </item>
       
     

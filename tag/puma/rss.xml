@@ -15,15 +15,21 @@
 	  <title>Ruby Middleware</title>
 	  <link>//ruby-rack</link>
 	  <author></author>
-	  <pubDate>2019-03-09T18:18:00+08:00</pubDate>
+	  <pubDate>2019-10-11T18:18:00+08:00</pubDate>
 	  <guid>//ruby-rack</guid>
 	  <description><![CDATA[
-	     <p><a href="https://rack.github.io/">Rack官网</a>对于Rack的介绍比较简单，只是介绍了Rack的作用和基本的使用。不过也可能因为不复杂，所以才用简单的几段话介绍了Rack。虽然我们不用了解middleware的调用原理也可以开发出能使用的middleware，但是总有点不知所以然的感觉，所以抽空总结了下Rack中middleware的调用原理。</p>
+	     <p><a href="https://rack.github.io/">Rack官网</a>对于Rack的介绍比较简单，只是介绍了Rack的作用和基本的使用。虽然我们不用了解middleware的调用原理也可以开发出能使用的middleware，但是总有点不知所以然的感觉，所以抽空总结了下Rack中middleware的调用原理。</p>
+
+<h3 id="装饰者模式">装饰者模式</h3>
+
+<ul>
+  <li>首先理解下装饰者模式，装饰者模式中有装饰者和被装饰者，就像套娃，在外面套上一层，外面那层就是装饰者，里面那层就是被装饰者，这两个概念要区分好，要不容易绕晕。在装饰者初始化时，被装饰者一般作为参数传递给装饰者，作为装饰者的成员。装饰者和被装饰者一般会有相同的行为，在装饰者的行为发生时会通过他的成员去调用被装饰者的行为，从而达到被装饰的目的。其实装饰者模式就是利用类有相似的行为这种方式，用装饰者去替代一下被装饰者，但是又不影响被装饰者的行为调用，同时在装饰者的行为发生时加些额外的功能。可以当作是被装饰者在外面加上了一层外壳，然后外壳发生变化的时候，会顺带着调用被装饰者的行为，Rack就是用到了这种模式。开始作为run方法调用的middleware就是最初的被装饰者，装饰者也有可能会成为被装饰者。而use方法调用的middleware就是接下来的装饰者了(也会作为被装饰者用)。对于上面要有相同的行为这点，其实感觉也不是很必要，统一定义成那个行为只是为了方便定义统一的接口模式，方便开发。理解这种模式对下面的调用思路比较有帮助。</li>
+</ul>
 
 <h3 id="rack-middleware的使用">Rack middleware的使用</h3>
 
 <ol>
-  <li>配置config.ru文件，定义好要用到的middleware和要run的middleware，为什么有些middleware需要run，有些需要use，下面再详细介绍。下面是一个简单的调用。
+  <li>配置config.ru文件，定义好要用到的middleware和要run的middleware。下面是一个简单的调用。
     <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  # ./config.ru
   app = Proc.new { |env| ['200', {'Content-Type' =&gt; 'text/html'}, ['get rack\'d']] }
   run app
@@ -65,7 +71,7 @@
 
 <h3 id="rack-middleware实现的原理">Rack Middleware实现的原理</h3>
 
-<p>定义好config.ru配置文件后在当前目录执行<code class="highlighter-rouge">rackup</code>命令，会去到ruby对应的bin目录执行文件。一般在ruby安装好后都会有这个二进制文件的，在我本地的位置是 <code class="highlighter-rouge">~/.rvm/gems/ruby-2.5.3/bin/rackup</code></p>
+<p>定义好config.ru配置文件后在当前目录执行<code class="highlighter-rouge">rackup</code>命令，会去到ruby对应的bin目录执行文件。一般在ruby安装好后都会有这个可执行文件的，在我本地的位置是 <code class="highlighter-rouge">~/.rvm/gems/ruby-2.5.3/bin/rackup</code></p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.5.3/bin/rackup
 require 'rubygems'
@@ -102,21 +108,21 @@ end
 }
 </code></pre></div></div>
 
-<p>其中config中的值config.ru就是默认的配置文件，然后就是实例执行run方法了。run方法中调用了wrapped_app方法，这个方法主要是把那些middleware汇总为一个app的方法。沿着方法调用栈继续查看，其中<code class="highlighter-rouge">build_app</code>方法比较重要。源码如下:</p>
+<p>其中config中的值config.ru就是默认的配置文件，然后就是实例执行run方法了。run方法中调用了wrapped_app方法，这个方法主要是把那些我们自己定义的middleware和Rack自己提供的middleware合并成一个app对象。沿着方法调用栈继续查看，其中<code class="highlighter-rouge">build_app</code>方法比较重要。源码如下:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>def build_app(app)
   middleware[options[:environment]].reverse_each do |middleware|
     middleware = middleware.call(self) if middleware.respond_to?(:call)
     next unless middleware
     klass, *args = middleware
-    app = klass.new(app, *args)
+    app = klass.new(app, *args) # 这一步把参数app当作被装饰者了
   end
   app
 end
 
 </code></pre></div></div>
 
-<p><code class="highlighter-rouge">middleware[options[:environment]]</code>求得的值是Rack中默认的middleware。遍历的块中每个middleware都会去创建一个实例，以app变量作为参数传入，这就是为什么每个middleware在initialize的时候都需要传入一个app变量，并初始化赋值给@app实例变量。上面的迭代遍历过程最后方法返回的app会变成如下的链式反应:</p>
+<p><code class="highlighter-rouge">middleware[options[:environment]]</code>求得的值是Rack中默认的middleware。遍历的块中每个middleware都会去创建一个实例，以app变量作为参数传入，这就是为什么每个middleware在initialize的时候都需要传入一个app变量，并初始化赋值给@app实例变量的原因。初始化的过程也就是被装饰者要被装饰的过程。上面的迭代遍历过程最后方法返回的app会变成如下的链式反应:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#&lt;Rack::ContentLength:0x00007ff72d568200
  @app=
@@ -137,7 +143,7 @@ end
                 #&lt;Proc:0x00007ff72d4a2820@/Users/Cain/code/ruby/rack/config.ru:30&gt;&gt;&gt;&gt;
 </code></pre></div></div>
 <p>这样通过调用<code class="highlighter-rouge">app.call</code>可以调用到所有middleware的call方法。
-如下例子：</p>
+举个例子：</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#config.ru
 class FirstMidd
@@ -192,8 +198,8 @@ use ThirdMidd
 run Top.new
 </code></pre></div></div>
 
-<p>发送一个请求<code class="highlighter-rouge">curl http://localhost:9292</code>后，服务器会会按照 <code class="highlighter-rouge">=&gt; 1, 2, 3, 4, 5, 6, 7</code> 的顺序输出。上面的执行顺序体现了一个调用栈的调用过程。
-同时上面还有一个app参数值的传入，求app过程如下:</p>
+<p>发送一个请求<code class="highlighter-rouge">curl http://localhost:9292</code>后，服务器会会按照 <code class="highlighter-rouge">=&gt; 1, 2, 3, 4, 5, 6, 7</code> 的顺序输出。Top作为最开始的被装饰者app，会先用ThirdMidd去装饰，返回app1，然后app1又作为被装饰者被SecondMidd装饰，直到FirstMidd，返回app3对象，这时候调用app2.call的时候，就会先调用FirstMidd的call方法，然后调用app3的call方法，然后调用直到app的call方法。
+详细的调用过程如下:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  # ~/.rvm/gems/ruby-2.5.3/gems/rack-2.0.6/lib/rack/server.rb
   def build_app_and_options_from_config
@@ -222,13 +228,13 @@ run Top.new
   end
 </code></pre></div></div>
 
-<p>最后会调用new_from_string这个方法。这个方法就是通过eval执行之前config.ru中的内容。其中<code class="highlighter-rouge">Builder#to_app</code>方法执行了 <code class="highlighter-rouge">app = @use.reverse.inject(app) { |a,e| e[a] }</code> 把 <code class="highlighter-rouge">config.ru</code> 中run方法调用的那些middleware实例逐个迭代作为参数嵌入到app变量中，app最终的效果如上面<code class="highlighter-rouge">build_app</code>方法中最后的app变量的形式一样。最终这个app值作为build_app方法的实参调用，最终合并成最终条链条。</p>
+<p>最后会调用new_from_string这个方法。这个方法就是通过eval执行之前config.ru中的内容。其中<code class="highlighter-rouge">Builder#to_app</code>方法执行 <code class="highlighter-rouge">app = @use.reverse.inject(app) { |a,e| e[a] }</code> 把 <code class="highlighter-rouge">config.ru</code> 中run方法和use方法调用的那些middleware实例逐个迭代作为参数嵌入到app变量中，app最终的效果如上面<code class="highlighter-rouge">build_app</code>方法中最后的app变量的形式一样。最终这个app值作为build_app方法的实参调用，最终合并成最终链条。</p>
 
-<p>上面留了个问题，为什么在 <code class="highlighter-rouge">config.ru</code> 中有些middleware需要用use，而最后会有个run方法的调用。因为run实例中的call方法是在server里面最后调用的方法，call方法按照状态，头部，body的形式返回。和其它的一些middleware初始化@app，然后在call方法中执行<code class="highlighter-rouge">@app.call(env)</code>还是有些区别的，所以在Rack里的实现就把run的那个middleware实例作为最终的[status, headers, body]形式返回给前面的middleware逐层去处理逻辑了。</p>
+<p>rack对middleware的处理使用了装饰者模式，不需要包含被装饰者的类就是初始的被装饰者，如上面例子的Top类和赋值proc给app变量的都是初始的被装饰者。逐级装饰嵌套后，最后会调用最外层的装饰者，调用call方法，这时会发生一系列的连锁反应，一直调用其它装饰者(也是被装饰者)的call方法，直到最初的那个被装饰者。这时候就会有内容返回了。</p>
 
 <h3 id="rack和应用服务器的对接">Rack和应用服务器的对接</h3>
 
-<p>Rack是应用服务器和应用的连接桥梁，具体是怎么实现的呢？其实Rack只是按照一定的规则去找出应用服务器，然后通过执行其中定义好的<code class="highlighter-rouge">run</code>方法，把上面链接好的迭代app传入服务器中去执行，从而达到中间桥梁的作用，主要的代码在<code class="highlighter-rouge">Rack::Server#start</code>的时候run了应用服务器。如下：</p>
+<p>上面的过程只是启动一个服务的时候准备的一些middlewa的过程。那应用服务器和middleware的连接桥梁是怎么实现的呢？其实Rack只是按照一定的规则去找出应用服务器，然后通过执行其中定义好的<code class="highlighter-rouge">run</code>方法，把上面链接好的迭代app传入服务器中去执行，从而达到中间桥梁的作用，主要的代码在<code class="highlighter-rouge">Rack::Server#start</code>的时候run了应用服务器。如下：</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.5.3/gems/rack-2.0.6/lib/rack/server.rb
 
@@ -238,7 +244,7 @@ def start
 end
 </code></pre></div></div>
 
-<p>这行代码中，server的调用过程如下:</p>
+<p>其中server的调用过程如下:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># ~/.rvm/gems/ruby-2.5.3/gems/rack-2.0.6/lib/rack/server.rb
 
